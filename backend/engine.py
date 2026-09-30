@@ -69,6 +69,8 @@ class Engine:
             # "No-action" twin: same crowd, same events, nobody approves anything.
             self.baseline = Engine(shadow=True, variant=self.variant)
         self._preview_cache = {}
+        self.history = {}
+        self._remember()
         return st
 
     def _add_unit(self, st, uid, t, base):
@@ -343,8 +345,9 @@ class Engine:
             self._physical_crush_report()
             self._think()
             self._record()
-        if self.baseline:
-            self.baseline.step(n)
+            if self.baseline:
+                self.baseline.step(1)
+            self._remember()
         self._preview_cache = {}
         return self.st
 
@@ -355,6 +358,7 @@ class Engine:
         if self.baseline:
             self.baseline.report(text)
         self._preview_cache = {}
+        self._remember()
         return self.st
 
     def citizen_report(self, text, confirm=False):
@@ -371,6 +375,7 @@ class Engine:
         if self.baseline:
             self.baseline.citizen_report(text, confirm)
         self._preview_cache = {}
+        self._remember()
         return inc
 
     def decide(self, pid, decision):
@@ -412,6 +417,7 @@ class Engine:
                 st["incidents"][e["incident"]]["status"] = "dismissed"
         self._think()
         self._preview_cache = {}
+        self._remember()
         return st
 
     # ------------------------------------------------------------------ twin futures
@@ -458,9 +464,16 @@ class Engine:
         return {"live": self._impact_of(self.st),
                 "twin": self._impact_of(self.baseline.st) if self.baseline else None}
 
+    def _remember(self):
+        """Replay: a frozen copy of what the dashboard showed at this minute (live engine only)."""
+        if not self.shadow and self.twin:  # not in previews, the twin, or Evidence Lab runs
+            self.history[self.st["minute"]] = copy.deepcopy(self.snapshot())
+
     def clone(self):
         b, self.baseline = self.baseline, None
+        h, self.history = getattr(self, "history", {}), {}  # previews do not need (or copy) the replay history
         c = copy.deepcopy(self)
+        self.history = h
         self.baseline = b
         c.shadow = True
         return c

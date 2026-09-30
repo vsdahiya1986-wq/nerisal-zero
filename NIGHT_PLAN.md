@@ -13,3 +13,4 @@ Baseline tests: 24
 - [x] T10 Offline check
 - [~] T11 SKIPPED: laptop had 0.5 GB of 7.7 GB RAM free at 04:15; a Playwright Chromium recording risked crashing processes. Record by hand.
 - [ ] T12 Final wrap-up
+- [x] Extra (section 4, one allowed): Replay scrubber

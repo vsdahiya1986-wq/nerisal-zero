@@ -117,6 +117,9 @@ body.presenter .clock{font-size:24px} body.presenter #presbtn{border-color:#14b8
 #help{position:fixed;right:14px;top:64px;z-index:2000;width:300px;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:12px;box-shadow:0 10px 30px #000a;display:none}
 #help.show{display:block} #help kbd{display:inline-block;min-width:44px;text-align:center;background:#0b1119;border:1px solid var(--line2);border-radius:5px;padding:1px 5px;margin-right:6px;font:12px Consolas,monospace}
 #help div{padding:3px 0;font-size:13px}
+.scrub{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;margin:2px 0}
+.scrub input{width:100%;accent-color:#f59e0b} #scrublbl{min-width:190px;text-align:right}
+#live.replaying #mapwrap{outline:3px solid #f59e0b;outline-offset:-3px} #live.replaying #scrublbl{color:#fcd34d;font-weight:700}
 .reason{font-size:12px;color:#c3ccd8;margin-bottom:6px}
 button.xs{padding:1px 7px;font-size:12px;margin-left:4px}
 .expl{margin:4px 0 2px;padding:6px 8px;border-left:3px solid var(--blue);background:#0b1119;color:#c3ccd8}
@@ -241,7 +244,8 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
 
   <div id="bottom">
     <div id="chartbox"><div class="small"><b style="color:#e8eef6">Twin futures</b> · Zone B p/m² · <span style="color:#5eead4">━ live (your decisions)</span> <span style="color:#f87171">┅ no-action twin</span> · <span id="twinsum"></span></div>
-      <svg id="chart" width="100%" height="170"></svg></div>
+      <div class="scrub"><span class="small">Replay</span><input type="range" id="scrub" min="0" max="0" value="0" aria-label="Replay: drag back to a past minute; release to return to live"><span id="scrublbl" class="small">live</span></div>
+      <svg id="chart" width="100%" height="146"></svg></div>
     <div id="logbox"></div>
   </div>
 
@@ -333,7 +337,7 @@ const RISK_COL={normal:'#22c55e',elevated:'#eab308',watch:'#f59e0b',danger:'#ef4
 const AG_COL={'Crowd Pressure Agent':'#c4b5fd','Incident Triage Agent':'#5eead4','Resource Allocation Agent':'#93c5fd',
   'Corridor & Route Agent':'#fcd34d','Hospital Surge Agent':'#f9a8d4','Command Agent':'#fca5a5','Commander (human)':'#86efac','Field report':'#e5e7eb','Citizen Pulse':'#fdba74'};
 const HOT=/SILENT ALARM|STALL|COVERAGE GAP|CRUSH|NEEDS HUMAN|CRITICAL/;
-let S=null, playing=false, timer=null, previews={}, explains={};
+let S=null, playing=false, timer=null, previews={}, explains={}, REPLAY=null;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 // ---------- tabs ----------
@@ -356,6 +360,7 @@ function view(v){ if(v==='venue') map.setView([11.0354,77.0412],17); else map.se
 
 // ---------- api ----------
 async function api(path,body){
+  if(REPLAY!==null) endReplay();  // any action returns to the live view first
   try{
     const r=await fetch('/api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
     if(!r.ok) throw new Error('HTTP '+r.status);
@@ -366,7 +371,7 @@ async function api(path,body){
     document.getElementById('clock').textContent='⚠ server not responding';
   }
 }
-async function poll(){ try{ const r=await fetch('/api/state'); S=await r.json(); render(); }catch(e){} }
+async function poll(){ if(REPLAY!==null) return; try{ const r=await fetch('/api/state'); const d=await r.json(); if(REPLAY===null){ S=d; render(); } }catch(e){} }
 let demoId=0;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 function togglePlay(){
@@ -529,6 +534,7 @@ function render(){
   document.getElementById('twinsum').innerHTML=`live: ${S.crush_minute!=null?'<span class="bad">crush at T+'+S.crush_minute+'</span>':'<span class="good">no crush</span>'} · twin: ${b.crush_minute!=null?'<span class="bad">crush at T+'+b.crush_minute+'</span>':'no crush yet'}`;
   drawMap();
   crowdSync();
+  scrubSync();
 }
 
 // Impact comparison, shared by the Live card and the After-action report. Lower is better on every row.
@@ -613,6 +619,19 @@ document.addEventListener('keydown',e=>{
   else if(k==='?'){ toggleHelp(); }
   else if(k==='Escape'){ document.getElementById('help').classList.remove('show'); }
 });
+// ---------- replay scrubber: drag back to any minute; release (or leave the slider) to return to live ----------
+const scrubEl=document.getElementById('scrub');
+function scrubSync(){ if(REPLAY!==null||!S) return; scrubEl.max=S.minute; scrubEl.value=S.minute;
+  document.getElementById('scrublbl').textContent='live · T+'+S.minute; }
+async function showMinute(m){
+  REPLAY=m; if(playing) togglePlay();
+  document.getElementById('live').classList.add('replaying');
+  document.getElementById('scrublbl').textContent='REPLAY T+'+m+' – release for live';
+  try{ const r=await fetch('/api/history/'+m); if(r.ok&&REPLAY===m){ S=await r.json(); render(); } }catch(e){}
+}
+function endReplay(){ if(REPLAY===null) return; REPLAY=null; document.getElementById('live').classList.remove('replaying'); poll(); }
+scrubEl.addEventListener('input',()=>showMinute(+scrubEl.value));
+scrubEl.addEventListener('pointerup',endReplay); scrubEl.addEventListener('blur',endReplay);
 function drawChart(svg,live,twin,cm,tm,now){
   const W=svg.clientWidth||600,H=+svg.getAttribute('height'),pl=30,pr=10,pt=8,pb=18;
   const maxM=Math.max(20,now+2), maxY=8;

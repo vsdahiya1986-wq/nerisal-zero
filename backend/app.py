@@ -138,6 +138,16 @@ def cap(ann_id: str):
     return Response(xml, media_type="application/xml")
 
 
+@app.get("/api/history/{minute}")
+def history(minute: int):
+    """Replay: the dashboard state as it was at a past minute."""
+    with lock:
+        frame = engine.history.get(minute)
+    if frame is None:
+        raise HTTPException(404, "No frame for that minute")
+    return JSONResponse(frame)
+
+
 @app.get("/api/aar")
 def aar():
     with lock:

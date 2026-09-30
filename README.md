@@ -48,6 +48,7 @@ offline Tamil/Tanglish/Hindi/English rule parser runs. Map tiles, voice input an
 - **Permit Stress-Test**: test the organiser's plan at 1×, 2× and 2.7× turnout before granting permission.
 - **After-action report**: timeline, who approved what and how long each alert waited (decision latency), golden-hour table; printable.
 - **Evidence Lab**: 200 simulated rallies × 3 human policies (tab "Evidence").
+- **Replay scrubber**: drag back to any minute to show when each warning appeared; release to return to live.
 - **Presenter mode + shortcuts**: `A+` for 20 % bigger text; Space, N, R, P, A, E, F keys.
 
 ## Honest limits

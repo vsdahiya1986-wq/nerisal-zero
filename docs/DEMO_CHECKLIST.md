@@ -55,6 +55,7 @@ Turn Wi-Fi off, start the server, run Demo mode.
 | 4 | After-action tab | Impact table at the top (same numbers), then live: no crush vs twin: crush at T+10; decision latency table |
 
 ### Presenter tips
+- **Replay:** drag the amber slider under the map back to T+1 ("this is when we first warned you") or T+7 (Silent Alarm); the map and panels show that minute with an amber outline. Release to return to live.
 - **A+** (or F) = presenter mode: 20 % bigger cards, agent log hidden. Press `?` for all shortcuts: Space play/pause, N +1 min, R reset, P preview, A approve first card, E Evidence, L Live.
 - The scenario ends at **T+30**: the header says "Scenario end (T+30) — press Reset" and Play stops by itself.
 - The Golden-hour table is at the bottom of the After-action tab.

@@ -54,3 +54,9 @@ enforces "no external URL except tiles", local assets exist, QR works with no ne
 
 04:15 — T11 SKIPPED (by the plan's own rule): 0.5 GB RAM free of 7.7 GB; installing + running Playwright Chromium with video
 could get processes killed. The team records the backup video by hand (DEMO_CHECKLIST section A).
+
+04:40 — Extra (section 4): Replay scrubber. Amber slider under the map; drag to any minute → map + all panels as they were
+(frozen deep copies, one per minute, live engine only; previews/twin/Evidence runs keep none). Release or leave the slider → live.
+Twin now steps minute-by-minute inside step() so each frame shows both worlds at the same minute — default run byte-identical.
+Cost: 6.5 ms/step, ~1 MB per 30-min run. Verified in Chrome: T+1 no banner, T+7 Silent Alarm, T+10 crush; polling ignored during
+replay; any action returns to live. 55 tests.
