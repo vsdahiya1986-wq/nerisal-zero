@@ -4,6 +4,7 @@ Holds the shared situation state, runs the scenario clock, simulates the crowd a
 movement, and orchestrates the agents on every event (every event triggers a re-plan).
 """
 import copy
+import statistics
 
 import pulse
 import scenario as S
@@ -244,8 +245,17 @@ class Engine:
                     eta = self.route.eta_to_hospital(inc, hid) or 15
                     for k in load:
                         moving[k] += load[k]
+                    # golden-hour tracking: one record per patient on board
+                    pts = st.setdefault("patients", [])
+                    ids = []
+                    for k in ("red", "yellow"):
+                        for _ in range(load[k]):
+                            ids.append(len(pts))
+                            pts.append({"incident": inc["id"], "triage": k, "injured": inc.get("crush_at", inc["created"]),
+                                        "reached": u.get("arrived", st["minute"]), "left_scene": st["minute"],
+                                        "unit": u["id"], "hospital": hid, "at_hospital": None})
                     u.update(status="transporting", hospital=hid, carry=load, eta_left=eta, eta_total=eta,
-                             start=(u["lat"], u["lng"]))
+                             start=(u["lat"], u["lng"]), carry_ids=ids)
                     self.log("Hospital Surge Agent", f"{u['id']} leaving {inc['id']} with "
                                                      f"{load['red']} red / {load['yellow']} yellow -> "
                                                      f"{st['hospitals'][hid]['name']} (ETA {eta:.0f} min).")
@@ -262,8 +272,10 @@ class Engine:
                         for k in ("red", "yellow"):
                             inc["in_transit"][k] -= u["carry"][k]
                             inc["delivered"][k] += u["carry"][k]
+                    for i in u.get("carry_ids") or []:
+                        st["patients"][i]["at_hospital"] = st["minute"]
                     u.update(status="available", incident=None, node=u["hospital"], lat=h["lat"], lng=h["lng"],
-                             carry=None)
+                             carry=None, carry_ids=[])
                     self.log("Hospital Surge Agent", f"{u['id']} handed over patients at {h['name']}; available again.")
 
     def _stall_detected(self, u):
@@ -416,14 +428,30 @@ class Engine:
         st["series"] = [r for r in st["series"] if r["m"] != row["m"]] + [row]
 
     @staticmethod
+    def golden(st):
+        """Golden hour: every red/yellow casualty from injury to hospital."""
+        pts = st.get("patients", [])
+        out = {}
+        for k in ("red", "yellow"):
+            total = sum(i["casualties"].get(k, 0) for i in st["incidents"].values() if i["status"] != "dismissed")
+            done = [p["at_hospital"] - p["injured"] for p in pts if p["triage"] == k and p["at_hospital"] is not None]
+            out[k] = {"total": total, "in_hospital": len(done),
+                      "median_min_to_hospital": statistics.median(done) if done else None,
+                      "within_60": sum(d <= 60 for d in done)}
+        return out
+
+    @staticmethod
     def _impact_of(st):
         crush = [i for i in st["incidents"].values() if i["type"] == "crush"]
+        g = Engine.golden(st)
         return {"crush": st["crush_minute"] is not None, "crush_minute": st["crush_minute"],
                 "peak_zone_b_density": max(r["B"] for r in st["series"]),
                 "estimated_red_casualties": sum(i["casualties"]["red"] for i in crush),
                 "people_minutes_above_5": sum(r.get("B_people", 0) for r in st["series"] if r["B"] > 5.0),
                 "hospitals_overloaded": len((st.get("hospital_plan") or {}).get("overload_plan", [])),
-                "unmet_needs_now": len(st.get("plan_raw", {}).get("unmet", []))}
+                "unmet_needs_now": len(st.get("plan_raw", {}).get("unmet", [])),
+                "red_not_in_hospital": g["red"]["total"] - g["red"]["in_hospital"],
+                "median_min_to_hospital": g["red"]["median_min_to_hospital"]}
 
     def impact(self):
         """Live vs no-action twin, in numbers."""
@@ -498,6 +526,8 @@ class Engine:
         base = self.baseline.st if self.baseline else None
         return {
             "minute": st["minute"], "decisions": decisions, "timeline": timeline[-60:], "impact": self.impact(),
+            "golden": self.golden(st), "patients": [dict(p, hospital_name=st["hospitals"][p["hospital"]]["name"])
+                                                    for p in st.get("patients", [])],
             "incidents": [{k: i[k] for k in ("id", "title", "location", "severity", "status", "created", "casualties")}
                           for i in st["incidents"].values()],
             "hospitals": [{k: h[k] for k in ("name", "load_red", "load_yellow", "cap_red", "cap_yellow")} for h in st["hospitals"].values()],
@@ -533,6 +563,6 @@ class Engine:
             "baseline": ({"series": self.baseline.st["series"], "crush_minute": self.baseline.st["crush_minute"],
                           "averted": self.baseline.st["averted"]} if self.baseline else None),
             "total_people": sum(z["count"] for z in st["zones"].values()), "impact": self.impact(),
-            "end_minute": S.END_MINUTE, "pulse": pulse.summary(st),
+            "end_minute": S.END_MINUTE, "pulse": pulse.summary(st), "golden": self.golden(st),
             "next_events": [e for i, e in enumerate(self.events) if i not in st["events_seen"]][:4],
         }

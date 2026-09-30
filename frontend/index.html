@@ -214,7 +214,7 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
       <div class="small" id="factors" style="margin-top:6px"></div></div>
     <div class="card"><h3>Fragility <span class="small">next-shock stress test</span></h3>
       <div class="gauge"><div class="gnum" id="frag">–</div><div class="small" id="fragtxt"></div></div></div>
-    <div class="card"><h3>Hospital load <span class="small">our plan vs nearest-only</span></h3><div id="hosps"></div></div>
+    <div class="card"><h3>Hospital load <span class="small">our plan vs nearest-only</span></h3><div id="golden" class="small" style="margin-bottom:6px"></div><div id="hosps"></div></div>
     <div class="card"><h3>Citizen Pulse <span class="small">attendees' phones · last 5 min</span></h3><div id="pulse"></div>
       <div class="pulseqr"><div id="pulseqr"></div><div class="small">Attendees scan to report:<br><b id="pulseurl" style="color:#e8eef6;word-break:break-all">…</b><br>Phones need the server started with <code>--host 0.0.0.0</code>.</div></div>
       <div class="btns" style="margin-top:6px"><button onclick="simPulse()" title="Posts 60 plausible taps, weighted by each zone's crowd">👥 Simulate 60 attendees</button></div></div>
@@ -304,6 +304,7 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
   <h2>Decisions and decision latency</h2><div class="card"><table class="tbl" id="aardec"></table></div>
   <h2>Incidents</h2><div class="card"><table class="tbl" id="aarinc"></table></div>
   <h2>Hospitals</h2><div class="card"><table class="tbl" id="aarhos"></table></div>
+  <h2>Golden hour – every red / yellow patient</h2><div class="card"><div class="small" id="aargoldsum" style="margin-bottom:6px"></div><table class="tbl" id="aargold"></table></div>
   <h2>Timeline</h2><div class="card" id="aartl" style="font-family:Consolas,monospace;font-size:12px"></div>
 </div></section>
 
@@ -442,6 +443,8 @@ function render(){
   }
   if((hp.overload_naive||[]).length) hh+=`<div class="small" style="color:#fca5a5">Nearest-only would overload ${hp.overload_naive.map(id=>S.hospitals.find(h=>h.id===id).name.split(' (')[0]).join(', ')}. Our plan: ${hp.overload_plan.length?'<b>overload</b>':'no hospital over capacity'}.</div>`;
   document.getElementById('hosps').innerHTML=hh;
+  const gr=(S.golden||{}).red; document.getElementById('golden').innerHTML=gr&&gr.total?
+    `<b style="color:#e8eef6">Golden hour:</b> red patients in hospital <b style="color:#fff">${gr.in_hospital}/${gr.total}</b> · median time to hospital <b style="color:#fff">${gr.median_min_to_hospital??'–'}</b> min`:'Golden hour: no red patients.';
 
   document.getElementById('impact').innerHTML=impactTable(S.impact);
   const pu=S.pulse||{}; document.getElementById('pulse').innerHTML=`<table class="imp"><tr><th>Zone</th><th>OK</th><th>Can't move</th><th>Medical</th><th>Lost child</th><th>Index</th></tr>${
@@ -521,8 +524,11 @@ function impactTable(imp){
     ['Red casualties (est.)',x=>x.estimated_red_casualties,x=>x.estimated_red_casualties],
     ['People-minutes above 5 p/m²',x=>x.people_minutes_above_5.toLocaleString('en-IN'),x=>x.people_minutes_above_5],
     ['Hospitals overloaded',x=>x.hospitals_overloaded,x=>x.hospitals_overloaded],
-    ['Unmet needs now',x=>x.unmet_needs_now,x=>x.unmet_needs_now]];
-  const cell=(show,a,b)=>`<td class="${a<b?'better':a>b?'worse':''}">${show}${a<b?' ✓':''}</td>`;
+    ['Unmet needs now',x=>x.unmet_needs_now,x=>x.unmet_needs_now],
+    ['Red patients not yet in hospital',x=>x.red_not_in_hospital,x=>x.red_not_in_hospital],
+    ['Median min injury → hospital (red)',x=>x.median_min_to_hospital??'–',x=>x.median_min_to_hospital]];
+  const cell=(show,a,b)=>{ if(a==null||b==null) return `<td>${show}</td>`;  // nothing to compare (e.g. no patients)
+    return `<td class="${a<b?'better':a>b?'worse':''}">${show}${a<b?' ✓':''}</td>`; };
   return `<table class="imp"><tr><th></th><th>Your decisions</th><th>No action</th></tr>${rows.map(([l,f,v])=>
     `<tr><td>${l}</td>${cell(f(L),v(L),v(T))}${cell(f(T),v(T),v(L))}</tr>`).join('')}</table>`;
 }
@@ -650,6 +656,10 @@ async function loadAAR(){
   document.getElementById('aarsub').textContent=`Generated at T+${d.minute}. Every alert, decision and who approved it — with timings. Synthetic scenario.`;
   const b=d.baseline||{};
   document.getElementById('aarimpact').innerHTML=impactTable(d.impact);
+  const G=d.golden||{}, gs=k=>{const g=G[k]||{}; return `${k}: ${g.in_hospital||0}/${g.total||0} in hospital, median ${g.median_min_to_hospital??'–'} min, ${g.within_60||0} within 60 min`;};
+  document.getElementById('aargoldsum').textContent=gs('red')+' · '+gs('yellow');
+  document.getElementById('aargold').innerHTML='<tr><th>Incident</th><th>Triage</th><th>Injured</th><th>Ambulance reached</th><th>At hospital</th><th>Minutes</th><th>Hospital</th></tr>'+
+    ((d.patients||[]).map(p=>`<tr><td>${p.incident}</td><td>${p.triage.toUpperCase()}</td><td>T+${p.injured}</td><td>T+${p.reached} (${p.unit})</td><td>${p.at_hospital!=null?'T+'+p.at_hospital:'<span class="warn">on the way</span>'}</td><td>${p.at_hospital!=null?(p.at_hospital-p.injured)+(p.at_hospital-p.injured<=60?' ✓':''):'–'}</td><td>${esc(p.hospital_name.split(' (')[0])}</td></tr>`).join('')||'<tr><td colspan="7" class="mut">No patient has been transported yet.</td></tr>');
   document.getElementById('aarstats').innerHTML=`
     <div class="stat"><div class="small">WITH NERISAL ZERO (your decisions)</div><div class="n ${d.live.crush_minute!=null?'bad':'good'}">${d.live.crush_minute!=null?'Crush at T+'+d.live.crush_minute:'No crush'}</div><div class="small">Peak Zone B density ${d.live.peak_B} p/m²</div></div>
     <div class="stat"><div class="small">NO-ACTION TWIN (same crowd, same events)</div><div class="n ${b.crush_minute!=null?'bad':'good'}">${b.crush_minute!=null?'Crush at T+'+b.crush_minute:'No crush'}</div><div class="small">Peak Zone B density ${b.peak_B} p/m²</div></div>`;

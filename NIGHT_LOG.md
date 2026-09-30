@@ -19,3 +19,9 @@ POST /api/pulse (20 s per-device rate limit), 5+ "can't move" taps (or 30 %+ of 
 Silent Alarm), medical → low-confidence incident + Confirm card, lost child → missing-child incident. Dashboard card with index,
 QR (LAN IP), "Simulate 60 attendees". SMS fallback (136/160 chars) in the Public alert modal. 42 tests.
 Assumption: the twin also receives citizen reports (same world; only the commander's approvals differ).
+
+02:15 — T4 done. Golden hour: every transported red/yellow patient recorded (injured → ambulance reached → at hospital).
+Dashboard: line in the Hospital card; After-action: per-patient table; Impact rows "Red patients not yet in hospital" and
+"Median min injury → hospital". Finding (from the engine, not tuned): no action → by T+30 only 1 of 5 red patients is in
+hospital (the T+0 road accident); A1, parked at Gate 4, is still stuck en route to the crush. Approving Gate 4 at T+10 → first
+crush patient in hospital at T+20. Default run byte-identical (tracking only). 46 tests.
