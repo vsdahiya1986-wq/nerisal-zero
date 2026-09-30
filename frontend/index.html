@@ -28,7 +28,7 @@ input,select{background:#0b1119;border:1px solid var(--line2);border-radius:7px;
 b.num{font-variant-numeric:tabular-nums}
 
 /* header */
-header{height:56px;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:hidden;padding:0 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0d131c,#0a0e14)}
+header{height:56px;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;padding:0 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0d131c,#0a0e14)}
 .brand{font-weight:900;letter-spacing:.6px;font-size:18px;line-height:1}
 .brand span{color:var(--red)}
 .brand small{display:block;white-space:nowrap;font-weight:500;color:var(--mut);font-size:12px;letter-spacing:.2px;margin-top:3px}
@@ -111,6 +111,12 @@ header{height:56px;display:flex;align-items:center;gap:10px;white-space:nowrap;o
 .pulseqr{display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center;margin-top:6px}
 .pulseqr svg{width:110px;height:110px;background:#fff;border-radius:6px;display:block}
 .smsbox{background:#070b10;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:13px;margin-bottom:8px}
+body.presenter .col .card,body.presenter #chartbox{zoom:1.2}
+body.presenter #logbox{display:none} body.presenter #bottom{grid-template-columns:1fr}
+body.presenter .clock{font-size:24px} body.presenter #presbtn{border-color:#14b8a6;color:#5eead4}
+#help{position:fixed;right:14px;top:64px;z-index:2000;width:300px;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:12px;box-shadow:0 10px 30px #000a;display:none}
+#help.show{display:block} #help kbd{display:inline-block;min-width:44px;text-align:center;background:#0b1119;border:1px solid var(--line2);border-radius:5px;padding:1px 5px;margin-right:6px;font:12px Consolas,monospace}
+#help div{padding:3px 0;font-size:13px}
 .reason{font-size:12px;color:#c3ccd8;margin-bottom:6px}
 button.xs{padding:1px 7px;font-size:12px;margin-left:4px}
 .expl{margin:4px 0 2px;padding:6px 8px;border-left:3px solid var(--blue);background:#0b1119;color:#c3ccd8}
@@ -164,11 +170,16 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
 .stat{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel)}
 .stat .n{font-size:28px;font-weight:900}
 .brand,.clock,.ctrls,.tabs{flex-shrink:0}
+@media (max-width:2100px){ .brand small{display:none} }
+#pulse .imp{table-layout:fixed} #pulse .imp th{white-space:normal}
 @media (max-width:1560px){
   .brand small{display:none} .kpi i{font-size:12px} .kpi{padding:0 7px}
   .tabs button{padding:6px 8px} #live{grid-template-columns:270px 1fr 360px}
 }
-@media (max-width:1400px){ .kpis .kpi:nth-child(n+4){display:none} .clock{font-size:17px} }
+@media (max-width:1400px){
+  .kpis,.wide-only{display:none} .clock{font-size:17px} .brand{font-size:16px}
+  .ctrls{gap:4px} .ctrls button{padding:6px 8px} .tabs button{padding:5px 7px} header{gap:8px;padding:0 10px}
+}
 @media print{
   header,.noprint{display:none!important} html,body{overflow:visible;background:#fff;color:#000}
   .view{display:none!important} #report{display:block!important;height:auto}
@@ -196,14 +207,16 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
   </div>
   <div class="ctrls" id="simctrls">
     <button class="ghost" onclick="view('venue')" title="Zoom to venue">Venue</button>
-    <button class="ghost" onclick="view('city')" title="Zoom to city">City</button>
+    <button class="ghost wide-only" onclick="view('city')" title="Zoom to city">City</button>
     <button class="ghost on" id="crowdbtn" onclick="toggleCrowd()" title="Animated crowd: 1 dot ≈ 50 people">Crowd view: ON</button>
     <button onclick="api('reset')">⟲ Reset</button>
     <button onclick="api('step',{n:1})">+1 min</button>
     <button class="pri" id="playbtn" onclick="togglePlay()">▶ Play</button>
     <button onclick="demo()" title="Plays the scripted Run 1 hands-free. Pause stops it.">🎬 Demo mode</button>
     <button class="ghost" onclick="togglePanel()" title="Hide / show the decision panel">⇥ Panel</button>
-    <select id="speed"><option value="3000">slow</option><option value="1800" selected>normal</option><option value="900">fast</option></select>
+    <button class="ghost" id="presbtn" onclick="togglePresenter()" title="Presenter mode: text 20 % bigger, agent log hidden (key: F)">A+</button>
+    <button class="ghost" onclick="toggleHelp()" title="Keyboard shortcuts">?</button>
+    <select id="speed" class="wide-only"><option value="3000">slow</option><option value="1800" selected>normal</option><option value="900">fast</option></select>
   </div>
 </header>
 
@@ -245,6 +258,11 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
   </div>
 </section>
 
+<div id="help" role="dialog" aria-label="Keyboard shortcuts"><b>Keyboard shortcuts</b>
+  <div><kbd>Space</kbd>Play / pause</div><div><kbd>N</kbd>+1 minute</div><div><kbd>R</kbd>Reset</div>
+  <div><kbd>P</kbd>Preview the first pending card</div><div><kbd>A</kbd>Approve the first pending card</div>
+  <div><kbd>E</kbd>Evidence tab</div><div><kbd>L</kbd>Live tab</div><div><kbd>F</kbd>Presenter mode</div><div><kbd>?</kbd>This help</div>
+  <div class="small">Ignored while typing in a text box.</div></div>
 <!-- CAP public alert modal (native <dialog>: Esc closes it) -->
 <dialog id="capdlg">
   <div class="capwarn">EXERCISE / DEMO – not a real alert</div>
@@ -573,6 +591,28 @@ async function loadPulseQR(){
     document.getElementById('pulseqr').innerHTML=d.svg||''; }catch(e){}
 }
 async function simPulse(){ await api('pulse/simulate',{n:60}); }
+// ---------- presenter mode + keyboard shortcuts ----------
+function togglePresenter(){ document.body.classList.toggle('presenter'); try{ localStorage.setItem('presenter',document.body.classList.contains('presenter')?'1':''); }catch(e){}
+  setTimeout(()=>map.invalidateSize(),50); }
+try{ if(localStorage.getItem('presenter')==='1') document.body.classList.add('presenter'); }catch(e){}
+function toggleHelp(){ document.getElementById('help').classList.toggle('show'); }
+function tab(v){ const b=document.querySelector(`.tabs button[data-v="${v}"]`); if(b) b.click(); }
+document.addEventListener('keydown',e=>{
+  const t=e.target, tag=(t&&t.tagName||'').toLowerCase();
+  if(e.ctrlKey||e.metaKey||e.altKey||tag==='input'||tag==='textarea'||tag==='select'||(t&&t.isContentEditable)) return;
+  if(document.getElementById('capdlg').open) return;  // the alert dialog has its own keys (Esc)
+  const k=e.key, first=()=>S&&S.approvals.find(a=>a.status==='pending'), live=document.getElementById('live').classList.contains('on');
+  if(k===' '){ e.preventDefault(); if(document.activeElement) document.activeElement.blur(); if(live) togglePlay(); }
+  else if(k==='n'||k==='N'){ if(live) api('step',{n:1}); }
+  else if(k==='r'||k==='R'){ if(live){ if(playing) togglePlay(); api('reset'); } }
+  else if(k==='p'||k==='P'){ const a=first(); if(live&&a) preview(a.id); }
+  else if(k==='a'||k==='A'){ const a=first(); if(live&&a) decide(a.id,'approve'); }
+  else if(k==='e'||k==='E'){ tab('evidence'); }
+  else if(k==='l'||k==='L'){ tab('live'); }
+  else if(k==='f'||k==='F'){ togglePresenter(); }
+  else if(k==='?'){ toggleHelp(); }
+  else if(k==='Escape'){ document.getElementById('help').classList.remove('show'); }
+});
 function drawChart(svg,live,twin,cm,tm,now){
   const W=svg.clientWidth||600,H=+svg.getAttribute('height'),pl=30,pr=10,pt=8,pb=18;
   const maxM=Math.max(20,now+2), maxY=8;

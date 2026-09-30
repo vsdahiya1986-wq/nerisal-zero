@@ -5,7 +5,7 @@ Baseline tests: 24
 - [x] T2 Evidence Lab: 200 simulated rallies
 - [x] T3 Citizen Pulse
 - [x] T4 Golden-hour patient tracker
-- [ ] T5 Projector & judge polish (presenter mode, shortcuts)
+- [x] T5 Projector & judge polish (presenter mode, shortcuts)
 - [ ] T6 README that wins in 30 seconds
 - [ ] T7 Judge Q&A pack
 - [ ] T8 Crash sweep v2

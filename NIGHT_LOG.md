@@ -25,3 +25,9 @@ Dashboard: line in the Hospital card; After-action: per-patient table; Impact ro
 "Median min injury → hospital". Finding (from the engine, not tuned): no action → by T+30 only 1 of 5 red patients is in
 hospital (the T+0 road accident); A1, parked at Gate 4, is still stuck en route to the crush. Approving Gate 4 at T+10 → first
 crush patient in hospital at T+20. Default run byte-identical (tracking only). 46 tests.
+
+02:45 — T5 done. Presenter mode (A+ button or F): cards/chart 20 % bigger, agent log hidden, remembered per browser.
+Shortcuts (? shows them): Space play/pause, N +1, R reset, P preview first pending, A approve first pending, E Evidence, L Live, F presenter.
+Measured in Chrome (iframes, no window resize): header had overflowed at 1920 px (+140 px) and would at 1366; fixed (hide subtitle ≤2100,
+KPIs/City/speed ≤1400 — same facts shown elsewhere) → last button at 1356/1366 and 1906/1920, no card overflow, no text < 12 px, both modes.
+Shortcuts verified live (R, N, A approves Open Gate 4, typing ignored, help, E/L). 47 tests.

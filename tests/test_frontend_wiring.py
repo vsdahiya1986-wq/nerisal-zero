@@ -15,3 +15,11 @@ def test_living_crowd_canvas_and_toggle_present():
     # existing demo controls still there
     for s in ("Demo mode", "Preview", 'id="chart"', "Fullscreen", "Speak", 'id="impact"'):
         assert s in html
+
+
+def test_presenter_mode_help_and_shortcuts_present():
+    html = TestClient(app.app).get("/").text
+    assert 'id="presbtn"' in html and "togglePresenter" in html
+    assert 'id="help"' in html and "Keyboard shortcuts" in html
+    # shortcuts must not fire while typing
+    assert "tag==='input'||tag==='textarea'" in html
