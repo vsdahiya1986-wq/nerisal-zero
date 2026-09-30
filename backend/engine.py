@@ -18,8 +18,13 @@ FOOT = {"MED", "VOL", "WAT"}
 
 
 class Engine:
-    def __init__(self, shadow=False):
+    def __init__(self, shadow=False, variant=None, twin=True):
+        """variant=None is the scripted demo (unchanged). A variant dict (see evidence.make_variant) changes
+        starting crowd, entry rates, events and heat, and makes the crush report depend on the physics.
+        twin=False skips the no-action twin (the Evidence Lab runs its own policies)."""
         self.shadow = shadow
+        self.variant = variant
+        self.twin = twin
         self.baseline = None
         self.crowd = CrowdPressureAgent()
         self.triage = IncidentTriageAgent()
@@ -38,6 +43,13 @@ class Engine:
             "plan_version": 0, "last_diff": None, "reasons": [], "fragility": {}, "mutual_aid": False,
             "averted": False, "series": [], "crush_minute": None,
         }
+        v = self.variant or {}
+        self.events = v.get("events", S.EVENTS)
+        self.entry = {g: int(round(base * v.get("entry_mult", {}).get(g, 1.0))) for g, base in (("G1", 300), ("G2", 180))}
+        for zid, mult in v.get("zone_mult", {}).items():
+            st["zones"][zid]["count"] = int(round(st["zones"][zid]["count"] * mult))
+        if "heat_c" in v:
+            st["venue"]["heat_c"] = v["heat_c"]
         for zid, z in st["zones"].items():
             z["density"] = round(z["count"] / z["area"], 2)
             z["forecast"] = z["density"]
@@ -51,9 +63,9 @@ class Engine:
         self._apply_events(0)
         self._think()
         self._record()
-        if not self.shadow:
+        if not self.shadow and self.twin:
             # "No-action" twin: same crowd, same events, nobody approves anything.
-            self.baseline = Engine(shadow=True)
+            self.baseline = Engine(shadow=True, variant=self.variant)
         self._preview_cache = {}
         return st
 
@@ -92,7 +104,7 @@ class Engine:
     # ------------------------------------------------------------------ events
     def _apply_events(self, minute):
         st = self.st
-        for i, ev in enumerate(S.EVENTS):
+        for i, ev in enumerate(self.events):
             if ev["minute"] != minute or i in st["events_seen"]:
                 continue
             st["events_seen"].append(i)
@@ -126,6 +138,18 @@ class Engine:
                 self.log("Field report", ev["note"])
                 self.log("Corridor & Route Agent", "Road graph updated; all travel times recomputed and units re-routed.")
 
+    def _physical_crush_report(self):
+        """Variants only: the crush report arrives when Zone B has been >= 5 p/m² for 2 consecutive minutes."""
+        v, st = self.variant, self.st
+        if not v or not v.get("crush_on_condition") or st.get("physical_crush_reported"):
+            return
+        b = st["zones"]["B"]
+        if st["series"] and st["series"][-1]["B"] >= 5.0 and b["count"] / b["area"] >= 5.0:
+            st["physical_crush_reported"] = True
+            text = v.get("crush_text", "STAMPEDE at stage front zone B!! people falling, 12 injured, 4 not breathing properly, blood")
+            self.log("Field report", text)
+            self.triage.ingest(st, text, self.log, self.propose)
+
     @staticmethod
     def _is_crush_text(text):
         t = text.lower()
@@ -138,9 +162,9 @@ class Engine:
         halted = v["event_halted"]
         if not halted:
             if g["G1"]["open"]:
-                z["A"]["count"] += 300
+                z["A"]["count"] += self.entry["G1"]
             if g["G2"]["open"]:
-                z["C"]["count"] += 180
+                z["C"]["count"] += self.entry["G2"]
         drift = 0.007
         if v["vip_delay_min"] >= 60 and not halted:
             drift += 0.004
@@ -303,6 +327,7 @@ class Engine:
             self._move_units()
             self._resolve_incidents()
             self._apply_events(m)
+            self._physical_crush_report()
             self._think()
             self._record()
         if self.baseline:
@@ -492,5 +517,5 @@ class Engine:
                           "averted": self.baseline.st["averted"]} if self.baseline else None),
             "total_people": sum(z["count"] for z in st["zones"].values()), "impact": self.impact(),
             "end_minute": S.END_MINUTE,
-            "next_events": [e for i, e in enumerate(S.EVENTS) if i not in st["events_seen"]][:4],
+            "next_events": [e for i, e in enumerate(self.events) if i not in st["events_seen"]][:4],
         }

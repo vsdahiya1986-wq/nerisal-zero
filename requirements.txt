@@ -5,3 +5,5 @@ scipy>=1.11
 networkx>=3.2
 # optional: Claude-powered triage (set ANTHROPIC_API_KEY)
 anthropic>=0.40
+# Evidence Lab chart (docs/evidence.png); the server runs without it
+matplotlib>=3.8

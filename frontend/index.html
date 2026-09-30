@@ -139,7 +139,7 @@ textarea{width:100%;background:#0b1119;color:var(--ink);border:1px solid var(--l
 .leaflet-tooltip{background:#0f172a;color:#e5e7eb;border:1px solid #334155;box-shadow:none}
 
 /* permit + report */
-#permit,#report{grid-template-columns:1fr;overflow:auto}
+#permit,#report,#evidence{grid-template-columns:1fr;overflow:auto}
 .page{max-width:1180px;margin:0 auto;padding:18px 20px 40px;width:100%}
 .page h1{font-size:22px;margin:0 0 4px}
 .page h2{font-size:14px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);margin:22px 0 10px}
@@ -188,6 +188,7 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
     <button class="on" data-v="live">Live</button>
     <button data-v="permit">Permit test</button>
     <button data-v="report">After-action</button>
+    <button data-v="evidence">Evidence</button>
     <button onclick="window.open('/marshal','_blank')">Marshal ↗</button>
   </div>
   <div class="ctrls" id="simctrls">
@@ -274,6 +275,16 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
 </div></section>
 
 <!-- ====================== REPORT ====================== -->
+<!-- ====================== EVIDENCE ====================== -->
+<section class="view" id="evidence"><div class="page">
+  <h1>Evidence Lab</h1>
+  <div class="mut">Does acting on the warnings help beyond our one scripted demo? The same randomised rallies are run under three human policies.</div>
+  <div id="evbody" style="margin-top:14px"><span class="mut">Loading…</span></div>
+  <p class="small" style="margin-top:18px">Synthetic model-based simulation, not real-world validation. Randomised per run: starting crowd per zone ×0.8–1.2,
+    entry rates ×0.7–1.3, guest delay 60–240 min announced at T+6–12, power failure at T+8–13 (25 % of runs: none), heat 32–40 °C.
+    Crush conditions = Zone B ≥ 5 p/m² for 2+ consecutive minutes, identical for every policy.</p>
+</div></section>
+
 <section class="view" id="report"><div class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px">
     <div><h1>After-Action Report</h1><div class="mut" id="aarsub">Auto-generated from the audit log. Every alert, decision and who approved it — with timings.</div></div>
@@ -305,6 +316,7 @@ document.querySelectorAll('.tabs button[data-v]').forEach(b=>b.onclick=()=>{
   document.getElementById('simctrls').style.visibility=b.dataset.v==='live'?'visible':'hidden';
   if(b.dataset.v==='live') setTimeout(()=>map.invalidateSize(),50);
   if(b.dataset.v==='report') loadAAR();
+  if(b.dataset.v==='evidence') loadEvidence();
   if(b.dataset.v==='permit' && !document.getElementById('verdicts').innerHTML) runPermit();
 });
 
@@ -514,6 +526,27 @@ async function openCap(id){
 function capCopy(){ if(!capText) return; navigator.clipboard.writeText(capText).then(()=>document.getElementById('capmsg').textContent='Copied.',()=>document.getElementById('capmsg').textContent='Copy blocked: use Download.'); }
 function capDownload(){ if(!capText) return; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([capText],{type:'application/xml'}));
   a.download='nerisal-cap-exercise-'+capName+'.xml'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+// ---------- evidence lab ----------
+async function loadEvidence(){
+  const el=document.getElementById('evbody'); let d;
+  try{ d=await (await fetch('/api/evidence')).json(); }catch(e){ el.innerHTML='<span class="bad">Server not responding.</span>'; return; }
+  if(d.missing){
+    const j=d.job||{};
+    el.innerHTML=`<div class="card"><b>No evidence yet.</b> <span class="mut">Run the Evidence Lab (50 simulated rallies × 3 policies, about 10 s).</span>
+      <div class="btns" style="margin-top:8px"><button class="pri" onclick="runEvidence()" ${j.running?'disabled':''}>Run the Evidence Lab</button>
+      <span class="small">${j.running?'Running… '+Math.round((j.progress||0)*100)+' %':''}${j.error?'<span class="bad">Failed: '+esc(j.error)+'</span>':''}</span></div></div>`;
+    if(j.running) setTimeout(loadEvidence,1000);
+    return;
+  }
+  const P=d.policies, pct=x=>x==null?'–':Math.round(100*x)+' %', rows=Object.values(P).map(p=>{const s=p.summary;
+    return `<tr><td>${esc(p.label)}</td><td>${pct(s.crush_rate)}</td><td>${pct(s.crush_rate_preventable)}</td>
+      <td>${s.peak_b_median} <span class="mut">(${s.peak_b_p10}–${s.peak_b_p90})</span></td><td>${Math.round(s.people_minutes_above_5_median).toLocaleString('en-IN')}</td><td>${s.decisions_mean}</td></tr>`;}).join('');
+  el.innerHTML=`<div class="card" style="font-size:17px;line-height:1.5"><b>${esc(d.headline)}</b>${d.headline_preventable?`<div class="mut" style="font-size:14px;margin-top:4px">${esc(d.headline_preventable)}</div>`:''}</div>
+    <h2>Per policy · ${d.n} runs each, same seeds</h2>
+    <div class="card"><table class="tbl"><tr><th>Policy</th><th>Crush conditions (all runs)</th><th>(runs not critical at T+0)</th><th>Peak Zone B p/m², median (p10–p90)</th><th>People-min above 5, median</th><th>Decisions, mean</th></tr>${rows}</table></div>
+    <div class="card" style="margin-top:12px;background:#fff"><img src="/evidence.png?v=${d.n}-${d.seconds}" alt="Crush-condition rate per policy and peak Zone B density per run" style="width:100%;display:block" onerror="this.parentNode.style.display='none'"></div>`;
+}
+async function runEvidence(){ try{ await fetch('/api/evidence/run',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"n":50}'}); }catch(e){} loadEvidence(); }
 function drawChart(svg,live,twin,cm,tm,now){
   const W=svg.clientWidth||600,H=+svg.getAttribute('height'),pl=30,pr=10,pt=8,pb=18;
   const maxM=Math.max(20,now+2), maxY=8;

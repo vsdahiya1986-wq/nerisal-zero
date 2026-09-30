@@ -4,6 +4,7 @@ Run:  python -m uvicorn app:app --port 8000   (from the backend folder)
 Then open http://localhost:8000          (commander dashboard)
           http://localhost:8000/marshal  (phone view for ground marshals)
 """
+import json
 import os
 import threading
 from typing import List, Optional
@@ -14,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from agents.explain import explain
+import evidence
 from cap import build_cap
 from engine import Engine
 from permit import assess
@@ -22,6 +24,9 @@ app = FastAPI(title="NERISAL ZERO")
 engine = Engine()
 lock = threading.Lock()
 FRONT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+DOCS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "docs"))
+EVIDENCE_JSON = os.path.join(DOCS_DIR, "evidence.json")
+lab = {"running": False, "progress": 0.0, "error": None}  # background Evidence Lab job
 app.mount("/vendor", StaticFiles(directory=os.path.join(FRONT_DIR, "vendor")), name="vendor")
 
 
@@ -134,6 +139,60 @@ def aar():
 def permit(body: Permit):
     return JSONResponse(assess(body.declared, body.area_m2, body.exit_width_m, body.ambulances,
                                body.delay_min, body.heat_c, tuple(body.multipliers), body.assumptions))
+
+
+class LabRun(BaseModel):
+    n: int = 50
+
+
+@app.get("/api/evidence")
+def get_evidence():
+    """Summaries only (the per-run rows stay in docs/evidence.json)."""
+    if not os.path.exists(EVIDENCE_JSON):
+        return JSONResponse({"missing": True, "job": lab})
+    with open(EVIDENCE_JSON, encoding="utf-8") as f:
+        d = json.load(f)
+    for p in d["policies"].values():
+        p.pop("runs", None)
+    d["job"] = lab
+    return JSONResponse(d)
+
+
+@app.post("/api/evidence/run")
+def run_evidence(body: LabRun):
+    # Only when no results exist: never overwrite the committed 200-run evidence from a button.
+    if os.path.exists(EVIDENCE_JSON):
+        raise HTTPException(409, "Evidence already exists")
+    if lab["running"]:
+        return JSONResponse({"job": lab})
+    n = max(10, min(200, body.n))
+
+    def work():
+        try:
+            data = evidence.run_lab(n, progress=lambda f: lab.update(progress=round(f, 3)))
+            os.makedirs(DOCS_DIR, exist_ok=True)
+            with open(EVIDENCE_JSON, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=1)
+            try:
+                evidence.write_png(data, os.path.join(DOCS_DIR, "evidence.png"))
+            except ImportError:
+                pass  # matplotlib is optional at run time; the tab still shows the numbers
+        except Exception as e:  # report, never crash the server
+            lab["error"] = f"{type(e).__name__}: {e}"
+        finally:
+            lab["running"] = False
+
+    lab.update(running=True, progress=0.0, error=None)
+    threading.Thread(target=work, daemon=True).start()
+    return JSONResponse({"job": lab})
+
+
+@app.get("/evidence.png")
+def evidence_png():
+    p = os.path.join(DOCS_DIR, "evidence.png")
+    if not os.path.exists(p):
+        raise HTTPException(404, "No chart yet")
+    return FileResponse(p, media_type="image/png")
 
 
 @app.get("/api/health")
