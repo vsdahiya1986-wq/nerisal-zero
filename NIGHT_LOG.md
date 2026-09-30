@@ -40,3 +40,7 @@ Removed a politician's name from a source title in BRAINSTORM.md (night rule 6).
 03:30 — T7 done. docs/JUDGE_QA.md (25 questions: works?, AI, why-not, privacy/accountability, feasibility) and docs/PITCH.md
 (2-min + 60-s). Every number re-checked against code: removed two claims I could not verify (a "hundreds of units in ms" speed
 claim and "holding areas" in permit conditions) and replaced them with measured / actual wording.
+
+03:45 — T8 done. Crash sweep v2: 3,200 random actions over every endpoint (step/report/decide/preview/reset/state/aar/permit/cap/sms/
+explain/pulse/pulse-simulate/guidance/qr/evidence/evidence-run/png/pages) with Tamil/English/emoji/huge/null-byte/HTML junk and invalid
+ids → 0 server errors. Added tests/test_fuzz.py (400 actions, fixed seed) so it stays that way. 48 tests.

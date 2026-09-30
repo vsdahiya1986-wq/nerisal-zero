@@ -8,7 +8,7 @@ Baseline tests: 24
 - [x] T5 Projector & judge polish (presenter mode, shortcuts)
 - [x] T6 README that wins in 30 seconds
 - [x] T7 Judge Q&A pack
-- [ ] T8 Crash sweep v2
+- [x] T8 Crash sweep v2
 - [ ] T9 Performance check
 - [ ] T10 Offline check
 - [ ] T11 Auto-recorded backup demo video (optional)
