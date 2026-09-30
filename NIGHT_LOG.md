@@ -51,3 +51,6 @@ Preview 26–65 ms first call, ~8 ms cached; Evidence 13 ms; Simulate 60 attende
 map tiles, 🎤 Speak (Chrome → Google), Claude triage/Explain (→ rules/template), online-only Chrome voices. New tests/test_offline.py
 enforces "no external URL except tiles", local assets exist, QR works with no network (127.0.0.1), no key → rules. Checklist B updated
 (hotspot tip for phones). 51 tests.
+
+04:15 — T11 SKIPPED (by the plan's own rule): 0.5 GB RAM free of 7.7 GB; installing + running Playwright Chromium with video
+could get processes killed. The team records the backup video by hand (DEMO_CHECKLIST section A).
