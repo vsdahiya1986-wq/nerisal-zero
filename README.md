@@ -49,6 +49,13 @@ offline Tamil/Tanglish/Hindi/English rule parser runs. The map tiles need intern
 
 ---
 
+## What's new tonight
+- **Impact score** – card at the top of the right column (and the top of the After-action report): your decisions vs the no-action twin. Run 2 at T+12: crush no vs YES (T+10), peak Zone B 4.68 vs 6.03 p/m², red casualties 0 vs 4, people-minutes above 5 p/m² 0 vs 67,834.
+- **Public alert (CAP 1.2)** – 📢 *Public alert* on any announcement opens the alert as Common Alerting Protocol XML (Tamil + English, status *Exercise*), with Copy and Download. It is the format public warning systems ingest. Always labelled EXERCISE / DEMO.
+- **Living crowd view** – animated dots on the map, 1 dot ≈ 50 people, coloured by density (teal < 4, amber ≥ 4, red ≥ 5 p/m²). Watch Zone B pack toward the stage, then stream out through Gate 4 once it is approved. Toggle: *Crowd view* next to Venue / City.
+
+---
+
 ## 3. Demo script (8 minutes) — rehearse exactly
 
 **0. Open (30 s).** "41 people died at Karur, 120+ in Indian stampedes in 2025. Every warning was visible. Nobody added them up."
