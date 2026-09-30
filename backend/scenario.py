@@ -110,6 +110,8 @@ UNITS = [
 
 # ---------------- Timed events (the demo script) ----------------
 # Each event is applied at the start of the given minute.
+END_MINUTE = 30  # the scenario stops here; /api/step clamps, Play and Demo mode stop
+
 EVENTS = [
     {"minute": 0, "type": "report", "text": "Zone A-la 2 per mayakkam pottu vizhunthutaanga, romba veyil. (2 people fainted in Zone A, too hot)"},
     {"minute": 0, "type": "report", "text": "மண்டலம் C-யில் 5 வயது குழந்தை காணவில்லை, சிவப்பு சட்டை. (child missing in Zone C)"},

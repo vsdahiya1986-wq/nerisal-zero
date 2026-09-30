@@ -1,7 +1,7 @@
 # Night plan (tasks from NIGHT_PROMPT.md section 3)
 Baseline tests: 24
 
-- [ ] T1 Polish fixes (T+30 end, chart labels, sensible diversions)
+- [x] T1 Polish fixes (T+30 end, chart labels, sensible diversions)
 - [ ] T2 Evidence Lab: 200 simulated rallies
 - [ ] T3 Citizen Pulse
 - [ ] T4 Golden-hour patient tracker

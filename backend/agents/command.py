@@ -159,11 +159,14 @@ class CommandAgent:
                 new = st["incidents"][iid]
                 gain = weight(new) * UNMET_MIN
                 loss = weight(old) * 10
-                propose(f"divert_{uid}_{iid}", f"Divert {uid} from {old['title']} ({old['id']}) to {new['title']} ({new['id']})",
-                        f"{uid} is already driving to {old['id']}. Moving it saves an estimated {gain:.0f} harm-points at {new['id']} "
-                        f"and costs about {loss:.0f} at {old['id']} (help there arrives ~10 min later). Pulling a responding unit is "
-                        "a human decision.",
-                        {"kind": "divert", "unit": uid, "incident": iid}, risk="high")
+                # Only worth a human's attention if clearly better, and never pull help away from a crowd crush.
+                sensible = gain >= 1.5 * loss and weight(new) > weight(old) and old["type"] != "crush"
+                if sensible:
+                        propose(f"divert_{uid}_{iid}", f"Divert {uid} from {old['title']} ({old['id']}) to {new['title']} ({new['id']})",
+                            f"{uid} is already driving to {old['id']}. Moving it saves an estimated {gain:.0f} harm-points at "
+                            f"{new['id']} and costs about {loss:.0f} at {old['id']} (help there arrives ~10 min later). "
+                            "Pulling a responding unit is a human decision.",
+                            {"kind": "divert", "unit": uid, "incident": iid}, risk="high")
                 # keep current job in the applied plan
                 plan["unit_to_inc"][uid] = u["incident"]
                 for s in plan["slots"]:

@@ -107,6 +107,7 @@ header{height:56px;display:flex;align-items:center;gap:10px;white-space:nowrap;o
 .capwarn{font-size:22px;font-weight:900;color:#fff;background:#b45309;border-radius:8px;padding:8px 12px;margin-bottom:6px;text-align:center;letter-spacing:.5px}
 #crowdcanvas{position:absolute;left:0;top:0;pointer-events:none}
 #crowdbtn.on{border-color:#14b8a6;color:#5eead4}
+.clock.ended{font-size:14px;color:#fcd34d;border-color:#b45309}
 .reason{font-size:12px;color:#c3ccd8;margin-bottom:6px}
 button.xs{padding:1px 7px;font-size:12px;margin-left:4px}
 .expl{margin:4px 0 2px;padding:6px 8px;border-left:3px solid var(--blue);background:#0b1119;color:#c3ccd8}
@@ -320,6 +321,7 @@ async function api(path,body){
     const r=await fetch('/api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
     if(!r.ok) throw new Error('HTTP '+r.status);
     S=await r.json(); render();
+    if(playing&&S.end_minute!=null&&S.minute>=S.end_minute) togglePlay();  // scenario end
   }catch(e){  // server down or error: stop auto-play and say so instead of failing silently
     if(playing) togglePlay();
     document.getElementById('clock').textContent='⚠ server not responding';
@@ -382,7 +384,8 @@ function speak(text,lang){
 function render(){
   if(!S) return;
   const v=S.venue;
-  document.getElementById('clock').textContent='T+'+S.minute+' min';
+  const ended=S.end_minute!=null&&S.minute>=S.end_minute, ck=document.getElementById('clock');
+  ck.textContent=ended?'Scenario end (T+'+S.minute+') — press Reset':'T+'+S.minute+' min'; ck.classList.toggle('ended',ended);
   const ppl=document.getElementById('people'); ppl.textContent=S.total_people.toLocaleString('en-IN'); ppl.className=S.total_people>12000?'bad':'';
   document.getElementById('heat').innerHTML=`<span class="${v.heat_c>=35?'warn':''}">${v.heat_c}°C</span>`;
   document.getElementById('power').innerHTML=v.power?'<span class="good">ON</span>':'<span class="bad">FAILED</span>';
@@ -519,13 +522,16 @@ function drawChart(svg,live,twin,cm,tm,now){
   g+=`<rect x="${pl}" y="${y(maxY)}" width="${W-pl-pr}" height="${y(5)-y(maxY)}" fill="#7f1d1d" opacity=".22"/>`;
   g+=`<rect x="${pl}" y="${y(5)}" width="${W-pl-pr}" height="${y(4)-y(5)}" fill="#b45309" opacity=".18"/>`;
   for(const t of [0,2,4,6,8]) g+=`<text x="${pl-6}" y="${y(t)+3}" fill="#8a98ab" font-size="12" text-anchor="end">${t}</text><line x1="${pl}" x2="${W-pr}" y1="${y(t)}" y2="${y(t)}" stroke="#1a2433"/>`;
-  for(let m=0;m<=maxM;m+=5) g+=`<text x="${x(m)}" y="${H-4}" fill="#8a98ab" font-size="12" text-anchor="middle">T+${m}</text>`;
+  // tick step from the visible range, so labels never overlap (≈44 px per label)
+  const tstep=[1,2,5,10,15].find(s=>(W-pl-pr)*s/maxM>=44)||30;
+  for(let m=0;m<=maxM;m+=tstep) g+=`<text x="${x(m)}" y="${H-4}" fill="#8a98ab" font-size="12" text-anchor="middle">T+${m}</text>`;
   g+=`<text x="${W-pr-4}" y="${y(5)-3}" fill="#fca5a5" font-size="12" text-anchor="end">crush danger ≥5</text>`;
   const path=(s,col,dash)=>s&&s.length?`<polyline fill="none" stroke="${col}" stroke-width="2.4" ${dash?'stroke-dasharray="5 4"':''} points="${s.map(r=>x(r.m)+','+y(r.B)).join(' ')}"/>`:'';
   g+=path(twin,'#f87171',true)+path(live,'#5eead4',false);
   const mark=(m,col,label)=>m!=null?`<line x1="${x(m)}" x2="${x(m)}" y1="${pt}" y2="${H-pb}" stroke="${col}" stroke-width="1.5" stroke-dasharray="3 3"/><text x="${x(m)+4}" y="${pt+10}" fill="${col}" font-size="12">${label}</text>`:'';
-  g+=mark(tm,'#f87171','twin crush');
-  if(cm!=null){ g+=`<line x1="${x(cm)}" x2="${x(cm)}" y1="${pt}" y2="${H-pb}" stroke="#5eead4" stroke-width="1.5" stroke-dasharray="3 3"/><text x="${x(cm)+4}" y="${pt+24}" fill="#5eead4" font-size="12">live crush</text>`; }
+  if(cm!=null&&cm===tm) g+=mark(cm,'#fca5a5','crush (both)');
+  else { g+=mark(tm,'#f87171','twin crush');
+  if(cm!=null){ g+=`<line x1="${x(cm)}" x2="${x(cm)}" y1="${pt}" y2="${H-pb}" stroke="#5eead4" stroke-width="1.5" stroke-dasharray="3 3"/><text x="${x(cm)+4}" y="${pt+24}" fill="#5eead4" font-size="12">live crush</text>`; } }
   g+=`<line x1="${x(now)}" x2="${x(now)}" y1="${pt}" y2="${H-pb}" stroke="#e8eef6" opacity=".35"/>`;
   svg.innerHTML=g;
 }

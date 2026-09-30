@@ -295,6 +295,8 @@ class Engine:
     # ------------------------------------------------------------------ public API
     def step(self, n=1):
         for _ in range(max(1, min(30, n))):
+            if self.st["minute"] >= S.END_MINUTE:
+                break
             self.st["minute"] += 1
             m = self.st["minute"]
             self._crowd_step()
@@ -489,5 +491,6 @@ class Engine:
             "baseline": ({"series": self.baseline.st["series"], "crush_minute": self.baseline.st["crush_minute"],
                           "averted": self.baseline.st["averted"]} if self.baseline else None),
             "total_people": sum(z["count"] for z in st["zones"].values()), "impact": self.impact(),
+            "end_minute": S.END_MINUTE,
             "next_events": [e for i, e in enumerate(S.EVENTS) if i not in st["events_seen"]][:4],
         }
