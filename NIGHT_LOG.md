@@ -36,3 +36,7 @@ Shortcuts verified live (R, N, A approves Open Gate 4, typing ignored, help, E/L
 evidence.png, new docs/architecture.png (tools/architecture.py), Try it in 60 s, one-line features, honest limits, "Demo video: (link)".
 DEMO_CHECKLIST: Evidence tab, Simulate 60 attendees + QR, Golden hour line, presenter tips, T+30 end — each claim re-checked by running the engine.
 Removed a politician's name from a source title in BRAINSTORM.md (night rule 6).
+
+03:30 — T7 done. docs/JUDGE_QA.md (25 questions: works?, AI, why-not, privacy/accountability, feasibility) and docs/PITCH.md
+(2-min + 60-s). Every number re-checked against code: removed two claims I could not verify (a "hundreds of units in ms" speed
+claim and "holding areas" in permit conditions) and replaced them with measured / actual wording.
