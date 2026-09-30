@@ -19,6 +19,17 @@ def _sub(parent, tag, text=None):
     return el
 
 
+def build_sms(st, ann_id):
+    """SMS fallback (<= 160 characters, Tamil + English) for phones without cell broadcast. None if unknown id."""
+    a = next((x for x in st["announcements"] if x["id"] == ann_id), None)
+    if a is None:
+        return None
+    zid, gate = a["zone"], a["gate"]
+    text = (f"[EXERCISE] மண்டலம் {zid}: நெரிசல் அபாயம். மெதுவாக {gate.replace('Gate', 'வாயில்')} வழியாக செல்லவும். "
+            f"Zone {zid} crush risk: walk slowly to {gate}. Do not push. -NERISAL")
+    return text[:160]
+
+
 def build_cap(st, ann_id):
     """CAP 1.2 XML (bytes, UTF-8) for one announcement, or None if the id is unknown."""
     a = next((x for x in st["announcements"] if x["id"] == ann_id), None)

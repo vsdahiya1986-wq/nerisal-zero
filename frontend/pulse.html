@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ta">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NERISAL ZERO – Citizen Pulse</title>
+<style>
+:root{--bg:#0a0e14;--panel:#131a24;--line:#233044;--ink:#e8eef6;--mut:#8a98ab}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 "Segoe UI",system-ui,sans-serif;padding:14px;max-width:520px;margin:auto}
+h1{font-size:16px;margin:0 0 4px;letter-spacing:.5px}h1 span{color:#ef4444}
+.sub{color:var(--mut);font-size:14px;margin-bottom:12px}
+.zones{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+.zones button{font:inherit;font-weight:800;padding:12px 0;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.zones button.on{background:#1d4ed8;border-color:#2563eb}
+.taps{display:grid;gap:10px;margin-bottom:12px}
+.taps button{font:inherit;text-align:left;padding:16px;border-radius:14px;border:2px solid transparent;color:#fff;min-height:74px}
+.taps button b{display:block;font-size:22px;line-height:1.2}
+.taps button span{font-size:15px;opacity:.92}
+.taps button:disabled{opacity:.5}
+.k-ok{background:#15803d}.k-cant_move{background:#b45309}.k-medical{background:#b91c1c}.k-lost_child{background:#6d28d9}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);margin:0 0 8px}
+.ta{font-size:20px;line-height:1.5}
+.en{color:var(--mut);font-size:15px;margin-top:6px}
+.ack{border-left:4px solid #22c55e;padding-left:10px;margin-bottom:10px}
+.err{color:#fca5a5}
+.small{font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+<h1>NERISAL <span>ZERO</span> · மக்கள் நாடி (Citizen Pulse)</h1>
+<div class="sub">உங்கள் பகுதியைத் தேர்ந்தெடுத்து, நிலைமையைத் தெரிவியுங்கள். · Pick your zone, then tell the control room how it is.</div>
+<div class="zones" id="zb"></div>
+<div class="taps" id="taps">
+  <button class="k-ok" data-kind="ok"><b>நான் நலம்</b><span>I'm OK</span></button>
+  <button class="k-cant_move" data-kind="cant_move"><b>நகர முடியவில்லை</b><span>Can't move – too crowded</span></button>
+  <button class="k-medical" data-kind="medical"><b>மருத்துவ உதவி</b><span>Someone needs medical help</span></button>
+  <button class="k-lost_child" data-kind="lost_child"><b>குழந்தை காணவில்லை</b><span>Lost child</span></button>
+</div>
+<div class="card"><h2>உங்களுக்கான அறிவுரை · Advice for your zone now</h2><div id="advice"><span class="small">Loading…</span></div></div>
+<div class="small">No name, no location tracking: only your zone and a random phone code (to stop repeated taps) are sent. Synthetic demo.</div>
+<script>
+const ZONES=['A','B','C','D'];
+let zone=(new URLSearchParams(location.search).get('zone')||'B').toUpperCase(); if(!ZONES.includes(zone)) zone='B';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// random device code; localStorage can be blocked (private mode), so fall back to one per page load
+let device='';
+try{ device=localStorage.getItem('pulse_device')||''; }catch(e){}
+if(!device){ device='p-'+Math.random().toString(36).slice(2,12); try{ localStorage.setItem('pulse_device',device); }catch(e){} }
+
+function zonesUI(){ document.getElementById('zb').innerHTML=ZONES.map(z=>`<button class="${z===zone?'on':''}" onclick="pick('${z}')">மண்டலம் ${z}<br><span style="font-weight:400;font-size:13px">Zone ${z}</span></button>`).join(''); }
+function pick(z){ zone=z; try{ history.replaceState(null,'','?zone='+z); }catch(e){} zonesUI(); advice(); }
+function show(g,ack){
+  document.getElementById('advice').innerHTML=(ack?`<div class="ack"><div class="ta">${esc(ack.ta)}</div><div class="en">${esc(ack.en)}</div></div>`:'')+
+    `<div class="ta">${esc(g.ta)}</div><div class="en">${esc(g.en)}</div><div class="small" style="margin-top:6px">Zone ${esc(g.zone)} · updated T+${esc(g.minute)}</div>`;
+}
+async function advice(){
+  try{ const r=await fetch('/api/pulse/guidance?zone='+zone); if(r.ok) show(await r.json()); }
+  catch(e){ document.getElementById('advice').innerHTML='<div class="err">இணைப்பு இல்லை · No connection. Follow the staff and announcements.</div>'; }
+}
+async function send(kind){
+  const btns=[...document.querySelectorAll('#taps button')]; btns.forEach(b=>b.disabled=true);
+  try{
+    const r=await fetch('/api/pulse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zone,kind,device})});
+    const d=await r.json();
+    if(r.status===429) document.getElementById('advice').insertAdjacentHTML('afterbegin',`<div class="ack err"><div class="ta">${esc(d.ta)}</div><div class="en">${esc(d.en)}</div></div>`);
+    else if(r.ok) show(d,{ta:d.ack_ta,en:d.ack_en});
+    else document.getElementById('advice').innerHTML='<div class="err">Could not send. Please tell the nearest staff member.</div>';
+  }catch(e){ document.getElementById('advice').innerHTML='<div class="err">இணைப்பு இல்லை · No connection. Please tell the nearest staff member.</div>'; }
+  setTimeout(()=>btns.forEach(b=>b.disabled=false),1500);
+}
+document.querySelectorAll('#taps button').forEach(b=>b.onclick=()=>send(b.dataset.kind));
+zonesUI(); advice(); setInterval(advice,10000);
+</script>
+</body>
+</html>

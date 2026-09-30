@@ -108,6 +108,9 @@ header{height:56px;display:flex;align-items:center;gap:10px;white-space:nowrap;o
 #crowdcanvas{position:absolute;left:0;top:0;pointer-events:none}
 #crowdbtn.on{border-color:#14b8a6;color:#5eead4}
 .clock.ended{font-size:14px;color:#fcd34d;border-color:#b45309}
+.pulseqr{display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center;margin-top:6px}
+.pulseqr svg{width:110px;height:110px;background:#fff;border-radius:6px;display:block}
+.smsbox{background:#070b10;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:13px;margin-bottom:8px}
 .reason{font-size:12px;color:#c3ccd8;margin-bottom:6px}
 button.xs{padding:1px 7px;font-size:12px;margin-left:4px}
 .expl{margin:4px 0 2px;padding:6px 8px;border-left:3px solid var(--blue);background:#0b1119;color:#c3ccd8}
@@ -212,6 +215,9 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
     <div class="card"><h3>Fragility <span class="small">next-shock stress test</span></h3>
       <div class="gauge"><div class="gnum" id="frag">–</div><div class="small" id="fragtxt"></div></div></div>
     <div class="card"><h3>Hospital load <span class="small">our plan vs nearest-only</span></h3><div id="hosps"></div></div>
+    <div class="card"><h3>Citizen Pulse <span class="small">attendees' phones · last 5 min</span></h3><div id="pulse"></div>
+      <div class="pulseqr"><div id="pulseqr"></div><div class="small">Attendees scan to report:<br><b id="pulseurl" style="color:#e8eef6;word-break:break-all">…</b><br>Phones need the server started with <code>--host 0.0.0.0</code>.</div></div>
+      <div class="btns" style="margin-top:6px"><button onclick="simPulse()" title="Posts 60 plausible taps, weighted by each zone's crowd">👥 Simulate 60 attendees</button></div></div>
   </div>
 
   <div id="mapwrap"><div id="map"></div><canvas id="crowdcanvas"></canvas><div class="banner" id="banner"></div>
@@ -244,7 +250,9 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
   <div class="capwarn">EXERCISE / DEMO – not a real alert</div>
   <div class="small">Common Alerting Protocol 1.2 · the format public warning systems ingest · Tamil + English</div>
   <pre id="capxml"></pre>
-  <div class="btns"><button class="pri" onclick="capCopy()">Copy</button><button onclick="capDownload()">Download .xml</button>
+  <div class="small" style="margin-top:4px">SMS fallback (phones without cell broadcast) · <span id="smschars"></span></div>
+  <div id="smstext" class="smsbox"></div>
+  <div class="btns"><button class="pri" onclick="capCopy()">Copy</button><button onclick="capDownload()">Download .xml</button><button onclick="smsCopy()">Copy SMS</button>
     <button onclick="document.getElementById('capdlg').close()">Close</button><span class="small" id="capmsg"></span></div>
 </dialog>
 
@@ -304,7 +312,7 @@ const TYPE_COL={ALS:'#dc2626',BLS:'#f97316',POL:'#2563eb',MED:'#14b8a6',VOL:'#a8
 const RING={available:'#ffffff',en_route:'#facc15',on_scene:'#ef4444',transporting:'#22c55e',unavailable:'#6b7280'};
 const RISK_COL={normal:'#22c55e',elevated:'#eab308',watch:'#f59e0b',danger:'#ef4444',critical:'#dc2626'};
 const AG_COL={'Crowd Pressure Agent':'#c4b5fd','Incident Triage Agent':'#5eead4','Resource Allocation Agent':'#93c5fd',
-  'Corridor & Route Agent':'#fcd34d','Hospital Surge Agent':'#f9a8d4','Command Agent':'#fca5a5','Commander (human)':'#86efac','Field report':'#e5e7eb'};
+  'Corridor & Route Agent':'#fcd34d','Hospital Surge Agent':'#f9a8d4','Command Agent':'#fca5a5','Commander (human)':'#86efac','Field report':'#e5e7eb','Citizen Pulse':'#fdba74'};
 const HOT=/SILENT ALARM|STALL|COVERAGE GAP|CRUSH|NEEDS HUMAN|CRITICAL/;
 let S=null, playing=false, timer=null, previews={}, explains={};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -436,6 +444,9 @@ function render(){
   document.getElementById('hosps').innerHTML=hh;
 
   document.getElementById('impact').innerHTML=impactTable(S.impact);
+  const pu=S.pulse||{}; document.getElementById('pulse').innerHTML=`<table class="imp"><tr><th>Zone</th><th>OK</th><th>Can't move</th><th>Medical</th><th>Lost child</th><th>Index</th></tr>${
+    Object.entries(pu).map(([z,c])=>`<tr><td>${z}</td><td>${c.ok}</td><td>${c.cant_move}</td><td>${c.medical}</td><td>${c.lost_child}</td><td class="${c.index>=0.3&&c.total>=3?'worse':''}">${c.total?Math.round(c.index*100)+' %':'–'}</td></tr>`).join('')}</table>
+    <div class="small">Index = share of taps saying "can't move". 5+ such taps (or 30 %+) in 3 min become a crowding report for the Triage Agent.</div>`;
 
   // approvals with decision preview
   const pend=S.approvals.filter(a=>a.status==='pending'); document.getElementById('pcount').textContent=pend.length;
@@ -515,12 +526,15 @@ function impactTable(imp){
   return `<table class="imp"><tr><th></th><th>Your decisions</th><th>No action</th></tr>${rows.map(([l,f,v])=>
     `<tr><td>${l}</td>${cell(f(L),v(L),v(T))}${cell(f(T),v(T),v(L))}</tr>`).join('')}</table>`;
 }
-let capText='', capName='';
+let capText='', capName='', smsText='';
+function smsCopy(){ if(!smsText) return; navigator.clipboard.writeText(smsText).then(()=>document.getElementById('capmsg').textContent='SMS copied.',()=>{}); }
 async function openCap(id){
   const pre=document.getElementById('capxml'); document.getElementById('capmsg').textContent='';
   pre.textContent='Building alert…'; document.getElementById('capdlg').showModal();
   try{ const r=await fetch('/api/cap/'+encodeURIComponent(id)); if(!r.ok) throw new Error(r.status);
-    capText=await r.text(); capName=id; pre.textContent=capText; }
+    capText=await r.text(); capName=id; pre.textContent=capText;
+    const s=await (await fetch('/api/sms/'+encodeURIComponent(id))).json(); smsText=s.text;
+    document.getElementById('smstext').textContent=s.text; document.getElementById('smschars').textContent=s.chars+' / 160 characters'; }
   catch(e){ capText=''; pre.textContent='Could not build the alert (server not responding or announcement gone).'; }
 }
 function capCopy(){ if(!capText) return; navigator.clipboard.writeText(capText).then(()=>document.getElementById('capmsg').textContent='Copied.',()=>document.getElementById('capmsg').textContent='Copy blocked: use Download.'); }
@@ -547,6 +561,12 @@ async function loadEvidence(){
     <div class="card" style="margin-top:12px;background:#fff"><img src="/evidence.png?v=${d.n}-${d.seconds}" alt="Crush-condition rate per policy and peak Zone B density per run" style="width:100%;display:block" onerror="this.parentNode.style.display='none'"></div>`;
 }
 async function runEvidence(){ try{ await fetch('/api/evidence/run',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"n":50}'}); }catch(e){} loadEvidence(); }
+// ---------- citizen pulse ----------
+async function loadPulseQR(){
+  try{ const d=await (await fetch('/api/pulse/qr')).json(); document.getElementById('pulseurl').textContent=d.url;
+    document.getElementById('pulseqr').innerHTML=d.svg||''; }catch(e){}
+}
+async function simPulse(){ await api('pulse/simulate',{n:60}); }
 function drawChart(svg,live,twin,cm,tm,now){
   const W=svg.clientWidth||600,H=+svg.getAttribute('height'),pl=30,pr=10,pt=8,pb=18;
   const maxM=Math.max(20,now+2), maxY=8;
@@ -640,6 +660,7 @@ async function loadAAR(){
   document.getElementById('aartl').innerHTML=d.timeline.map(l=>`<div><span class="mut">T+${String(l.minute).padStart(2,'0')}</span> <b style="color:${AG_COL[l.agent]||'#ddd'}">${esc(l.agent)}</b> — ${esc(l.msg)}</div>`).join('');
 }
 
+loadPulseQR();
 fetch('/api/health').then(r=>r.json()).then(h=>document.getElementById('llm').textContent=h.llm?'Claude triage: ON':'Rule-based triage (add ANTHROPIC_API_KEY for Claude)');
 // ---------- living crowd: one canvas in a custom Leaflet pane (above zone circles, below unit markers) ----------
 // 1 dot ≈ 50 people. Positions are metres from the zone centre, so pan/zoom never scrambles them.

@@ -4,19 +4,23 @@ Run:  python -m uvicorn app:app --port 8000   (from the backend folder)
 Then open http://localhost:8000          (commander dashboard)
           http://localhost:8000/marshal  (phone view for ground marshals)
 """
+import io
 import json
 import os
+import socket
 import threading
+import time
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from agents.explain import explain
 import evidence
-from cap import build_cap
+import pulse
+from cap import build_cap, build_sms
 from engine import Engine
 from permit import assess
 
@@ -61,6 +65,11 @@ def snap():
 @app.get("/")
 def index():
     return FileResponse(os.path.join(FRONT_DIR, "index.html"))
+
+
+@app.get("/pulse")
+def pulse_page():
+    return FileResponse(os.path.join(FRONT_DIR, "pulse.html"))
 
 
 @app.get("/marshal")
@@ -139,6 +148,95 @@ def aar():
 def permit(body: Permit):
     return JSONResponse(assess(body.declared, body.area_m2, body.exit_width_m, body.ambulances,
                                body.delay_min, body.heat_c, tuple(body.multipliers), body.assumptions))
+
+
+class PulseTap(BaseModel):
+    zone: str
+    kind: str
+    device: str = ""
+
+
+class PulseSim(BaseModel):
+    n: int = 60
+
+
+PULSE_GAP_S = 20
+last_tap = {}  # device id -> monotonic time of its last accepted tap
+
+
+def _zone(z):
+    z = (z or "").strip().upper()
+    if z not in engine.st["zones"]:
+        raise HTTPException(400, "Unknown zone")
+    return z
+
+
+@app.post("/api/pulse")
+def pulse_tap(body: PulseTap):
+    if body.kind not in pulse.KINDS:
+        raise HTTPException(400, "Unknown kind")
+    device = (body.device or "").strip()[:64] or "anonymous"
+    now = time.monotonic()
+    with lock:
+        zid = _zone(body.zone)
+        if now - last_tap.get(device, -1e9) < PULSE_GAP_S:
+            wait = int(PULSE_GAP_S - (now - last_tap[device])) + 1
+            return JSONResponse({"error": "rate_limited", "retry_after_s": wait,
+                                 "ta": f"{wait} விநாடிகள் கழித்து மீண்டும் முயற்சிக்கவும்.",
+                                 "en": f"Please wait {wait} seconds before tapping again."}, status_code=429)
+        last_tap[device] = now
+        if len(last_tap) > 20000:  # bounded memory
+            last_tap.clear()
+        return JSONResponse(pulse.tap(engine, zid, body.kind, device))
+
+
+@app.get("/api/pulse/guidance")
+def pulse_guidance(zone: str = "B"):
+    with lock:
+        return JSONResponse(pulse.guidance(engine, _zone(zone)))
+
+
+@app.post("/api/pulse/simulate")
+def pulse_simulate(body: PulseSim):
+    with lock:
+        pulse.simulate(engine, max(1, min(200, body.n)))
+        return snap()
+
+
+def lan_ip():
+    """This laptop's address on the local network (no packets are sent)."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("10.255.255.255", 1))
+        return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
+
+@app.get("/api/pulse/qr")
+def pulse_qr(request: Request):
+    url = f"http://{lan_ip()}:{request.url.port or 8000}/pulse"
+    try:
+        import qrcode
+        import qrcode.image.svg
+        buf = io.BytesIO()
+        qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage, border=2).save(buf)
+        svg = buf.getvalue().decode("utf-8")
+        svg = svg[svg.index("<svg"):]  # drop the XML declaration so it can be inlined
+    except ImportError:
+        svg = None  # the URL text still works
+    return JSONResponse({"url": url, "svg": svg})
+
+
+@app.get("/api/sms/{ann_id}")
+def sms(ann_id: str):
+    with lock:
+        text = build_sms(engine.st, ann_id)
+    if text is None:
+        raise HTTPException(404, "Unknown announcement")
+    return JSONResponse({"text": text, "chars": len(text)})
 
 
 class LabRun(BaseModel):

@@ -3,7 +3,7 @@ Baseline tests: 24
 
 - [x] T1 Polish fixes (T+30 end, chart labels, sensible diversions)
 - [x] T2 Evidence Lab: 200 simulated rallies
-- [ ] T3 Citizen Pulse
+- [x] T3 Citizen Pulse
 - [ ] T4 Golden-hour patient tracker
 - [ ] T5 Projector & judge polish (presenter mode, shortcuts)
 - [ ] T6 README that wins in 30 seconds

@@ -13,3 +13,9 @@ NERISAL advised: 73 % of all runs stay out of crush conditions vs 0 % no action 
 51/200 runs START at crush density (Zone B ×1.085+ of 4.61 p/m²) — no warning can prevent those; of the other 149, 98 % stay safe with advice.
 Assumption: kept the spec's ×0.8–1.2 range and reported that subset separately instead of shrinking the range. See: Evidence tab.
 Default demo proven byte-identical over 30 min after the engine change. 33 tests.
+
+01:50 — T3 done. Citizen Pulse: /pulse phone page (4 big Tamil+English buttons, zone picker, personal advice from live state),
+POST /api/pulse (20 s per-device rate limit), 5+ "can't move" taps (or 30 %+ of ≥3) in 3 min → one Triage report (merges, can fire
+Silent Alarm), medical → low-confidence incident + Confirm card, lost child → missing-child incident. Dashboard card with index,
+QR (LAN IP), "Simulate 60 attendees". SMS fallback (136/160 chars) in the Public alert modal. 42 tests.
+Assumption: the twin also receives citizen reports (same world; only the commander's approvals differ).
