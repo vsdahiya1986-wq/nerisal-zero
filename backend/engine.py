@@ -364,12 +364,27 @@ class Engine:
         crush = [i for i in st["incidents"].values() if i["type"] == "crush"]
         if crush and st["crush_minute"] is None:
             st["crush_minute"] = min(i.get("crush_at", i["created"]) for i in crush)
-        row = {"m": st["minute"], "B": st["zones"]["B"]["density"],
+        row = {"m": st["minute"], "B": st["zones"]["B"]["density"], "B_people": st["zones"]["B"]["count"],
                "max": max(z["density"] for z in st["zones"].values()),
                "unmet": len(st.get("plan_raw", {}).get("unmet", [])),
                "frag": st.get("fragility", {}).get("score", 0),
                "people": sum(z["count"] for z in st["zones"].values())}
         st["series"] = [r for r in st["series"] if r["m"] != row["m"]] + [row]
+
+    @staticmethod
+    def _impact_of(st):
+        crush = [i for i in st["incidents"].values() if i["type"] == "crush"]
+        return {"crush": st["crush_minute"] is not None, "crush_minute": st["crush_minute"],
+                "peak_zone_b_density": max(r["B"] for r in st["series"]),
+                "estimated_red_casualties": sum(i["casualties"]["red"] for i in crush),
+                "people_minutes_above_5": sum(r.get("B_people", 0) for r in st["series"] if r["B"] > 5.0),
+                "hospitals_overloaded": len((st.get("hospital_plan") or {}).get("overload_plan", [])),
+                "unmet_needs_now": len(st.get("plan_raw", {}).get("unmet", []))}
+
+    def impact(self):
+        """Live vs no-action twin, in numbers."""
+        return {"live": self._impact_of(self.st),
+                "twin": self._impact_of(self.baseline.st) if self.baseline else None}
 
     def clone(self):
         b, self.baseline = self.baseline, None
@@ -438,7 +453,7 @@ class Engine:
                     or l["agent"] == "Field report"]
         base = self.baseline.st if self.baseline else None
         return {
-            "minute": st["minute"], "decisions": decisions, "timeline": timeline[-60:],
+            "minute": st["minute"], "decisions": decisions, "timeline": timeline[-60:], "impact": self.impact(),
             "incidents": [{k: i[k] for k in ("id", "title", "location", "severity", "status", "created", "casualties")}
                           for i in st["incidents"].values()],
             "hospitals": [{k: h[k] for k in ("name", "load_red", "load_yellow", "cap_red", "cap_yellow")} for h in st["hospitals"].values()],
@@ -473,6 +488,6 @@ class Engine:
             "coverage": st.get("coverage", {}), "series": st["series"], "crush_minute": st["crush_minute"],
             "baseline": ({"series": self.baseline.st["series"], "crush_minute": self.baseline.st["crush_minute"],
                           "averted": self.baseline.st["averted"]} if self.baseline else None),
-            "total_people": sum(z["count"] for z in st["zones"].values()),
+            "total_people": sum(z["count"] for z in st["zones"].values()), "impact": self.impact(),
             "next_events": [e for i, e in enumerate(S.EVENTS) if i not in st["events_seen"]][:4],
         }

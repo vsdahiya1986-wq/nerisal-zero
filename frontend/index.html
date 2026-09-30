@@ -97,6 +97,10 @@ header{height:56px;display:flex;align-items:center;gap:10px;white-space:nowrap;o
 .diff>div{padding:3px 0;border-bottom:1px dashed #1f2a3a;font-size:12px}
 .d-added{color:#86efac}.d-moved{color:#93c5fd}.d-removed{color:#9ca3af}.d-worse{color:#fca5a5}.d-better{color:#86efac}.d-unmet{color:#f87171;font-weight:700}
 .incrow{display:grid;grid-template-columns:1fr 70px 44px;gap:6px;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px dashed #1f2a3a}
+.imp{width:100%;border-collapse:collapse;font-size:12px}
+.imp td,.imp th{padding:3px 4px;text-align:right;border-bottom:1px solid #1d2837}
+.imp th{color:var(--mut);font-weight:600}.imp td:first-child{text-align:left;color:var(--mut)}
+.imp .better{color:#86efac;font-weight:700}.imp .worse{color:#fca5a5}
 .reason{font-size:12px;color:#c3ccd8;margin-bottom:6px}
 button.xs{padding:1px 7px;font-size:12px;margin-left:4px}
 .expl{margin:4px 0 2px;padding:6px 8px;border-left:3px solid var(--blue);background:#0b1119;color:#c3ccd8}
@@ -214,6 +218,7 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
   </div>
 
   <div class="col right">
+    <div class="card"><h3>Impact <span class="small">your decisions vs no action</span></h3><div id="impact"></div></div>
     <div class="card"><h3>Needs human decision <span id="pcount" class="chip danger">0</span></h3><div id="approvals"></div></div>
     <div class="card"><h3>Open incidents <span class="small">harm if help is delayed 0→30 min</span></h3><div id="incs"></div></div>
     <div class="card"><h3>Plan diff <span class="small" id="diffv"></span></h3><div class="diff" id="diff"></div></div>
@@ -257,6 +262,7 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
     <div><h1>After-Action Report</h1><div class="mut" id="aarsub">Auto-generated from the audit log. Every alert, decision and who approved it — with timings.</div></div>
     <div class="noprint btns"><button onclick="loadAAR()">Refresh</button><button class="pri" onclick="window.print()">Print / Save PDF</button></div>
   </div>
+  <h2>Impact: your decisions vs no action</h2><div class="card" id="aarimpact"></div>
   <h2>Outcome vs the no-action twin</h2><div class="big2" id="aarstats"></div>
   <div class="card" style="margin-top:12px"><svg id="aarchart" width="100%" height="200"></svg></div>
   <h2>Decisions and decision latency</h2><div class="card"><table class="tbl" id="aardec"></table></div>
@@ -398,6 +404,8 @@ function render(){
   if((hp.overload_naive||[]).length) hh+=`<div class="small" style="color:#fca5a5">Nearest-only would overload ${hp.overload_naive.map(id=>S.hospitals.find(h=>h.id===id).name.split(' (')[0]).join(', ')}. Our plan: ${hp.overload_plan.length?'<b>overload</b>':'no hospital over capacity'}.</div>`;
   document.getElementById('hosps').innerHTML=hh;
 
+  document.getElementById('impact').innerHTML=impactTable(S.impact);
+
   // approvals with decision preview
   const pend=S.approvals.filter(a=>a.status==='pending'); document.getElementById('pcount').textContent=pend.length;
   document.getElementById('approvals').innerHTML=S.approvals.slice(0,9).map(a=>{
@@ -459,6 +467,22 @@ function render(){
   drawMap();
 }
 
+// Impact comparison, shared by the Live card and the After-action report. Lower is better on every row.
+// Better cell: green + ✓ (not colour alone).
+function impactTable(imp){
+  if(!imp||!imp.live) return '<div class="small">–</div>';
+  const L=imp.live,T=imp.twin;
+  if(!T) return '<div class="small">No-action twin not available.</div>';
+  const rows=[['Crowd crush',x=>x.crush?'YES (T+'+x.crush_minute+')':'no',x=>x.crush?1:0],
+    ['Peak Zone B p/m²',x=>x.peak_zone_b_density,x=>x.peak_zone_b_density],
+    ['Red casualties (est.)',x=>x.estimated_red_casualties,x=>x.estimated_red_casualties],
+    ['People-minutes above 5 p/m²',x=>x.people_minutes_above_5.toLocaleString('en-IN'),x=>x.people_minutes_above_5],
+    ['Hospitals overloaded',x=>x.hospitals_overloaded,x=>x.hospitals_overloaded],
+    ['Unmet needs now',x=>x.unmet_needs_now,x=>x.unmet_needs_now]];
+  const cell=(show,a,b)=>`<td class="${a<b?'better':a>b?'worse':''}">${show}${a<b?' ✓':''}</td>`;
+  return `<table class="imp"><tr><th></th><th>Your decisions</th><th>No action</th></tr>${rows.map(([l,f,v])=>
+    `<tr><td>${l}</td>${cell(f(L),v(L),v(T))}${cell(f(T),v(T),v(L))}</tr>`).join('')}</table>`;
+}
 function drawChart(svg,live,twin,cm,tm,now){
   const W=svg.clientWidth||600,H=+svg.getAttribute('height'),pl=30,pr=10,pt=8,pb=18;
   const maxM=Math.max(20,now+2), maxY=8;
@@ -538,6 +562,7 @@ async function loadAAR(){
   const d=await (await fetch('/api/aar')).json();
   document.getElementById('aarsub').textContent=`Generated at T+${d.minute}. Every alert, decision and who approved it — with timings. Synthetic scenario.`;
   const b=d.baseline||{};
+  document.getElementById('aarimpact').innerHTML=impactTable(d.impact);
   document.getElementById('aarstats').innerHTML=`
     <div class="stat"><div class="small">WITH NERISAL ZERO (your decisions)</div><div class="n ${d.live.crush_minute!=null?'bad':'good'}">${d.live.crush_minute!=null?'Crush at T+'+d.live.crush_minute:'No crush'}</div><div class="small">Peak Zone B density ${d.live.peak_B} p/m²</div></div>
     <div class="stat"><div class="small">NO-ACTION TWIN (same crowd, same events)</div><div class="n ${b.crush_minute!=null?'bad':'good'}">${b.crush_minute!=null?'Crush at T+'+b.crush_minute:'No crush'}</div><div class="small">Peak Zone B density ${b.peak_B} p/m²</div></div>`;
