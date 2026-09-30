@@ -32,8 +32,9 @@ python -m pytest -q        # from project root - MUST stay green
 - `agents/command.py` – Command Agent: Fragility Score, coverage gaps, Plan Diff, reasons, human-approval gate.
 - `agents/llm.py` – the ONLY Claude client (model via `ANTHROPIC_MODEL`, default `claude-opus-5`; 8 s timeout, no SDK retries).
 - `agents/explain.py` – "Explain" on Plan Diff lines: Claude rewords diff + reasons into English + Tamil; template fallback.
+- `cap.py` – CAP 1.2 public-alert XML for an announcement (ElementTree, status always "Exercise").
 - `permit.py` – pre-event Permit Stress-Test (transparent planning model, editable assumptions).
-- `app.py` – FastAPI routes: /api/state, /step, /reset, /report, /decide, /preview/{id}, /explain?v=&i=, /aar, /permit.
+- `app.py` – FastAPI routes: /api/state, /step, /reset, /report, /decide, /preview/{id}, /explain?v=&i=, /cap/{announcement_id}, /aar, /permit. `/api/state` includes `impact` (live vs twin).
 - Frontend: `frontend/index.html` (vanilla JS + Leaflet, no build step), `frontend/marshal.html`.
 
 ## Non-negotiable rules
