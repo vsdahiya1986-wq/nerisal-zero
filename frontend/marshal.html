@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ta">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NERISAL ZERO – Marshal</title>
+<style>
+:root{--bg:#0a0e14;--panel:#131a24;--line:#233044;--ink:#e8eef6;--mut:#8a98ab}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 "Segoe UI",system-ui,sans-serif;padding:14px;max-width:520px;margin:auto}
+h1{font-size:16px;margin:0 0 10px;letter-spacing:.5px}h1 span{color:#ef4444}
+.zones{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+.zones button{font:inherit;font-weight:800;padding:12px 0;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.zones button.on{background:#1d4ed8;border-color:#2563eb}
+.status{border-radius:14px;padding:16px;margin-bottom:12px;text-align:center}
+.status .lvl{font-size:30px;font-weight:900;letter-spacing:1px}
+.status .d{font-size:14px;opacity:.9}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);margin:0 0 8px}
+.ta{font-size:21px;line-height:1.5}
+.en{color:var(--mut);font-size:14px;margin-top:6px}
+.task{padding:8px 0;border-bottom:1px dashed var(--line)}
+button.say{font:inherit;margin-top:10px;width:100%;padding:12px;border-radius:10px;border:none;background:#15803d;color:#fff;font-weight:800}
+.small{font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+<h1>NERISAL <span>ZERO</span> · களப் பணியாளர் (Marshal)</h1>
+<div class="zones" id="zb"></div>
+<div class="status" id="status"></div>
+<div class="card"><h2>இப்போது செய்ய வேண்டியது · Do this now</h2><div id="todo"></div></div>
+<div class="card"><h2>அறிவிப்பு · Announcement for your zone</h2><div id="ann"></div></div>
+<div class="card"><h2>Help coming to your zone</h2><div id="help"></div></div>
+<div class="small">Updates every 3 seconds from the control room. Synthetic demo.</div>
+<script>
+const COL={normal:'#15803d',elevated:'#a16207',watch:'#c2410c',danger:'#b91c1c',critical:'#dc2626'};
+const TA={normal:'சாதாரணம்',elevated:'கவனம்',watch:'எச்சரிக்கை',danger:'ஆபத்து',critical:'அதிக ஆபத்து'};
+let zone=new URLSearchParams(location.search).get('zone')||'B', S=null;
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function pick(z){zone=z;history.replaceState(null,'','?zone='+z);render();}
+async function poll(){try{S=await (await fetch('/api/state')).json();render();}catch(e){}}
+function render(){
+  if(!S) return;
+  document.getElementById('zb').innerHTML=Object.keys(S.zones).map(z=>`<button class="${z===zone?'on':''}" onclick="pick('${z}')">Zone ${z}</button>`).join('');
+  if(!S.zones[zone]) zone=S.zones[zone.toUpperCase()]?zone.toUpperCase():'B';  // bad ?zone= link
+  const z=S.zones[zone];
+  document.getElementById('status').style.background=COL[z.risk];
+  document.getElementById('status').innerHTML=`<div class="lvl">${TA[z.risk]} · ${z.risk.toUpperCase()}</div><div class="d">${z.density} people/m² now → ${z.forecast} in 10 min · T+${S.minute}</div>`;
+  const todo=[];
+  const g4=S.gates.G4.open, g1=S.gates.G1.open;
+  if(['danger','critical'].includes(z.risk)){
+    todo.push(['மக்களை முன்னே தள்ள விடாதீர்கள். மேடை நோக்கி நகர்வதை நிறுத்துங்கள்.','Stop people pushing forward towards the stage.']);
+    todo.push([g4?'வாயில் 4 வழியாக மெதுவாக வெளியேற்றுங்கள்.':'வாயில் 3 வழியாக மெதுவாக வெளியேற்றுங்கள்.', g4?'Guide people slowly out through Gate 4.':'Guide people slowly out through Gate 3.']);
+  }
+  if(zone==='A'&&!g1) todo.push(['வாயில் 1 மூடப்பட்டது. யாரையும் உள்ளே விடாதீர்கள்.','Gate 1 is CLOSED. Do not let anyone in.']);
+  if(S.venue.heat_c>=35) todo.push(['மயக்கம் அடைந்தவர்களை நிழலுக்கு கொண்டு சென்று தண்ணீர் கொடுங்கள்.','Move anyone who feels faint into shade and give water.']);
+  if(S.venue.event_halted) todo.push(['நிகழ்ச்சி நிறுத்தப்பட்டது. பகுதி பகுதியாக வெளியேற்றுங்கள்.','Event halted. Disperse the crowd zone by zone.']);
+  const lane=S.incidents.find(i=>i.status==='open'&&i.location===zone&&['crush','cardiac','unit_blocked'].includes(i.type));
+  if(lane) todo.push(['ஆம்புலன்ஸ் வழியை திறந்து வைக்கவும்.','Keep the ambulance lane clear.']);
+  if(!todo.length) todo.push(['நிலைமை சாதாரணம். கவனித்துக் கொண்டே இருங்கள்.','Situation normal. Keep watching.']);
+  document.getElementById('todo').innerHTML=todo.map(t=>`<div class="task"><div class="ta">${t[0]}</div><div class="en">${t[1]}</div></div>`).join('');
+  const a=S.announcements.find(x=>x.zone===zone);
+  document.getElementById('ann').innerHTML=a?`<div class="ta">${esc(a.ta)}</div><div class="en">${esc(a.en)}</div><button class="say" onclick='say(${JSON.stringify(a.ta)})'>🔊 ஒலிபெருக்கியில் சொல்லுங்கள் (play)</button>`:'<div class="small">No announcement for this zone.</div>';
+  const inc=S.incidents.filter(i=>i.status==='open'&&i.location===zone).map(i=>i.id);
+  const units=S.units.filter(u=>inc.includes(u.incident));
+  document.getElementById('help').innerHTML=units.length?units.map(u=>`<div class="task">${u.id} · ${esc(u.label)} · ${u.status==='on_scene'?'<b>here now</b>':u.status==='en_route'?(u.eta_left??'?')+' min away':u.status}</div>`).join(''):'<div class="small">No active incident in this zone.</div>';
+}
+function say(t){try{const u=new SpeechSynthesisUtterance(t);u.lang='ta-IN';speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+poll(); setInterval(poll,3000);
+</script>
+</body>
+</html>

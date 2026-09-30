@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NERISAL ZERO – Crisis Command</title>
+<link rel="stylesheet" href="/vendor/leaflet.css">
+<script src="/vendor/leaflet.js"></script>
+<style>
+:root{
+  --bg:#0a0e14;--bg2:#0f141c;--panel:#131a24;--panel2:#18212e;--line:#233044;--line2:#2e3d55;
+  --ink:#e8eef6;--mut:#8a98ab;--dim:#5d6b7e;
+  --red:#ef4444;--red2:#b91c1c;--amber:#f59e0b;--yellow:#eab308;--green:#22c55e;--blue:#3b82f6;--teal:#14b8a6;--violet:#a78bfa;
+  --r:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.45 "Segoe UI",Inter,system-ui,-apple-system,Roboto,sans-serif;overflow:hidden}
+button,select,input{font:inherit;color:var(--ink)}
+button{cursor:pointer;border:1px solid var(--line2);background:var(--panel2);border-radius:7px;padding:6px 11px;transition:.15s}
+button:hover{border-color:#4b5f7d;background:#1d2837}
+button.pri{background:#1d4ed8;border-color:#2563eb}
+button.ok{background:#15803d;border-color:#16a34a}
+button.no{background:#2a1418;border-color:#7f1d1d}
+button.ghost{background:transparent}
+input,select{background:#0b1119;border:1px solid var(--line2);border-radius:7px;padding:6px 8px}
+.small{font-size:12px;color:var(--mut)}
+.mut{color:var(--mut)}
+b.num{font-variant-numeric:tabular-nums}
+
+/* header */
+header{height:56px;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:hidden;padding:0 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0d131c,#0a0e14)}
+.brand{font-weight:900;letter-spacing:.6px;font-size:18px;line-height:1}
+.brand span{color:var(--red)}
+.brand small{display:block;white-space:nowrap;font-weight:500;color:var(--mut);font-size:12px;letter-spacing:.2px;margin-top:3px}
+.clock{white-space:nowrap;font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;padding:3px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--panel)}
+.kpis{display:flex;gap:0}
+.kpi{padding:0 10px;border-left:1px solid var(--line)}
+.kpi b{display:block;font-size:14px;font-variant-numeric:tabular-nums}
+.kpi i{font-style:normal;color:var(--mut);font-size:12px}
+.tabs{display:flex;gap:4px;margin-left:8px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:3px}
+.tabs button{border:none;background:transparent;padding:6px 12px;color:var(--mut)}
+.tabs button.on{background:var(--panel2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line2)}
+.ctrls{margin-left:auto;display:flex;gap:6px;align-items:center}
+.bad{color:var(--red)}.warn{color:var(--amber)}.good{color:var(--green)}
+
+/* layout */
+.view{display:none;height:calc(100% - 56px)}
+.view.on{display:grid}
+#live{grid-template-columns:300px 1fr 400px;grid-template-rows:1fr 210px}
+.col{overflow:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
+.left{grid-row:1/3;border-right:1px solid var(--line)}
+.right{grid-row:1/3;grid-column:3;border-left:1px solid var(--line)}
+#mapwrap{position:relative;grid-column:2;grid-row:1}
+#map{position:absolute;inset:0;background:#070b10}
+#bottom{grid-column:2;grid-row:2;border-top:1px solid var(--line);display:grid;grid-template-columns:1.25fr 1fr;min-height:0}
+#chartbox{padding:8px 12px;border-right:1px solid var(--line);min-width:0}
+#logbox{overflow:auto;padding:6px 10px;font-family:Consolas,"Cascadia Mono",monospace;font-size:12px;background:#080c12}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 11px}
+.card h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);display:flex;justify-content:space-between;align-items:center;gap:6px}
+.chip{font-size:12px;font-weight:800;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.normal{background:#0f3d24;color:#bbf7d0}.elevated{background:#3a3a0e;color:#fef08a}.watch{background:#6b2f0a;color:#fde68a}
+.danger{background:#7f1d1d;color:#fecaca}.critical{background:#dc2626;color:#fff;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.55}}
+
+/* zones */
+.zone{padding:6px 0;border-bottom:1px dashed var(--line)}
+.zone:last-child{border:none}
+.zone .top{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.bar{position:relative;height:8px;background:#070b10;border-radius:5px;overflow:hidden;margin-top:5px}
+.bar>.fill{height:100%;border-radius:5px;transition:width .4s}
+.bar .th{position:absolute;top:0;bottom:0;width:1.5px;background:#ffffff55}
+.bar .fc{position:absolute;top:-1px;bottom:-1px;width:3px;background:#fff;border-radius:2px}
+.cov{display:flex;gap:6px;margin-top:4px}
+.cov span{font-size:12px;padding:1px 6px;border-radius:5px;background:#0b1119;border:1px solid var(--line)}
+.cov span.gap{border-color:#7f1d1d;color:#fca5a5}
+
+.gauge{display:flex;align-items:center;gap:12px}
+.gnum{font-size:36px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.hosp{margin-bottom:9px}
+.hrow{display:grid;grid-template-columns:48px 1fr 26px 1fr 26px;align-items:center;gap:5px;font-size:12px;color:var(--mut)}
+.hrow .bar{margin:0}
+
+/* decisions */
+.appr{border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:9px;padding:9px;margin-bottom:8px;background:var(--panel2)}
+.appr.high{border-left-color:var(--red)}.appr.info{border-left-color:var(--blue)}
+.appr.done{opacity:.5;padding:6px 9px}
+.appr b{display:block;margin-bottom:3px;font-size:13px}
+.appr p{margin:0 0 7px;color:#c3ccd8;font-size:12px}
+.btns{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pv{margin-top:8px;border-top:1px dashed var(--line2);padding-top:7px}
+.pv table{width:100%;border-collapse:collapse;font-size:12px}
+.pv td,.pv th{padding:3px 4px;text-align:right;border-bottom:1px solid #1d2837}
+.pv th{color:var(--mut);font-weight:600}
+.pv td:first-child,.pv th:first-child{text-align:left;color:var(--mut)}
+.pv .better{color:#86efac;font-weight:700}.pv .worse{color:#fca5a5}
+.pv ul{margin:6px 0 0;padding-left:16px;font-size:12px}
+.diff>div{padding:3px 0;border-bottom:1px dashed #1f2a3a;font-size:12px}
+.d-added{color:#86efac}.d-moved{color:#93c5fd}.d-removed{color:#9ca3af}.d-worse{color:#fca5a5}.d-better{color:#86efac}.d-unmet{color:#f87171;font-weight:700}
+.incrow{display:grid;grid-template-columns:1fr 70px 44px;gap:6px;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px dashed #1f2a3a}
+.reason{font-size:12px;color:#c3ccd8;margin-bottom:6px}
+button.xs{padding:1px 7px;font-size:12px;margin-left:4px}
+.expl{margin:4px 0 2px;padding:6px 8px;border-left:3px solid var(--blue);background:#0b1119;color:#c3ccd8}
+.expl .ta{font-size:13px;margin-top:3px;color:var(--ink)}
+.ann{border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:6px;background:var(--panel2)}
+.ann .ta{font-size:13.5px;margin:4px 0}
+.ann .en{font-size:12px;color:var(--mut)}
+textarea{width:100%;background:#0b1119;color:var(--ink);border:1px solid var(--line2);border-radius:7px;padding:8px;font:inherit;resize:vertical;min-height:52px}
+.logline{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:1px 0}
+.logline .t{color:#56657a}.ag{font-weight:700}
+.logline.hot{background:#2a1215}
+.banner{position:absolute;z-index:999;left:50%;transform:translateX(-50%);top:10px;padding:8px 16px;border-radius:8px;font-weight:800;display:none;letter-spacing:.3px;box-shadow:0 6px 20px #0008}
+.banner.show{display:block}
+.b-crush{background:#dc2626;color:#fff;animation:blink 1s infinite}.b-avert{background:#15803d;color:#fff}.b-warn{background:#b45309;color:#fff}
+.maplegend{position:absolute;z-index:998;left:10px;bottom:10px;background:#0b1119e6;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;color:var(--mut)}
+.maplegend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 3px 0 8px;vertical-align:-1px}
+.u-ic{border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;border:2.5px solid #0008;box-shadow:0 0 0 2px #0007}
+.u-stall{animation:blink .6s infinite}
+.i-ic{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;background:#b91c1c;border:2px solid #fff}
+.i-pulse{animation:blink .8s infinite}
+.g-ic{width:20px;height:20px;border-radius:4px;border:2px solid #fff;font-size:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900}
+.h-ic{width:22px;height:22px;border-radius:5px;background:#fff;color:#dc2626;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #dc2626}
+.leaflet-container{background:#070b10;font:inherit}
+.darktiles{filter:invert(1) hue-rotate(180deg) brightness(.75) contrast(.9)}
+.zlbl{color:#fff;font-weight:900;font-size:14px;white-space:nowrap;text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000}
+.mapbtn{position:absolute;z-index:998;right:10px;top:10px}
+#live.nopanel{grid-template-columns:300px 1fr 0!important} #live.nopanel .right{display:none}
+#mapwrap:fullscreen{background:#070b10}
+.leaflet-tooltip{background:#0f172a;color:#e5e7eb;border:1px solid #334155;box-shadow:none}
+
+/* permit + report */
+#permit,#report{grid-template-columns:1fr;overflow:auto}
+.page{max-width:1180px;margin:0 auto;padding:18px 20px 40px;width:100%}
+.page h1{font-size:22px;margin:0 0 4px}
+.page h2{font-size:14px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);margin:22px 0 10px}
+.grid2{display:grid;grid-template-columns:340px 1fr;gap:16px}
+.form label{display:grid;grid-template-columns:1fr 120px;align-items:center;gap:8px;margin-bottom:8px}
+.form input{width:100%}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 12px}
+.vgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.vcard{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel)}
+.vcard .v{font-size:20px;font-weight:900;margin:4px 0}
+.v-GO{color:var(--green)}.v-CONDITIONS{color:var(--amber)}.v-NO-GO{color:var(--red)}
+.vcard ul{margin:6px 0 0;padding-left:16px;color:#c3ccd8}
+.kv{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:12px}
+.kv span:nth-child(odd){color:var(--mut)}
+table.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+table.tbl td,table.tbl th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
+table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.6px}
+.big2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel)}
+.stat .n{font-size:28px;font-weight:900}
+.brand,.clock,.ctrls,.tabs{flex-shrink:0}
+@media (max-width:1560px){
+  .brand small{display:none} .kpi i{font-size:12px} .kpi{padding:0 7px}
+  .tabs button{padding:6px 8px} #live{grid-template-columns:270px 1fr 360px}
+}
+@media (max-width:1400px){ .kpis .kpi:nth-child(n+4){display:none} .clock{font-size:17px} }
+@media print{
+  header,.noprint{display:none!important} html,body{overflow:visible;background:#fff;color:#000}
+  .view{display:none!important} #report{display:block!important;height:auto}
+  .stat,.vcard,.card{background:#fff;border-color:#bbb} .mut,.small,table.tbl th{color:#444}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">NERISAL <span>ZERO</span><small>நெரிசல் = crowd crush · multi-agent crisis command</small></div>
+  <div class="clock" id="clock">T+0</div>
+  <div class="kpis">
+    <div class="kpi"><b id="people">–</b><i>inside · 10k planned</i></div>
+    <div class="kpi"><b id="heat">–</b><i>heat</i></div>
+    <div class="kpi"><b id="power">–</b><i>power</i></div>
+    <div class="kpi"><b id="delay">–</b><i>guest</i></div>
+    <div class="kpi"><b id="planv">–</b><i>plan</i></div>
+  </div>
+  <div class="tabs">
+    <button class="on" data-v="live">Live</button>
+    <button data-v="permit">Permit test</button>
+    <button data-v="report">After-action</button>
+    <button onclick="window.open('/marshal','_blank')">Marshal ↗</button>
+  </div>
+  <div class="ctrls" id="simctrls">
+    <button class="ghost" onclick="view('venue')" title="Zoom to venue">Venue</button>
+    <button class="ghost" onclick="view('city')" title="Zoom to city">City</button>
+    <button onclick="api('reset')">⟲ Reset</button>
+    <button onclick="api('step',{n:1})">+1 min</button>
+    <button class="pri" id="playbtn" onclick="togglePlay()">▶ Play</button>
+    <button onclick="demo()" title="Plays the scripted Run 1 hands-free. Pause stops it.">🎬 Demo mode</button>
+    <button class="ghost" onclick="togglePanel()" title="Hide / show the decision panel">⇥ Panel</button>
+    <select id="speed"><option value="3000">slow</option><option value="1800" selected>normal</option><option value="900">fast</option></select>
+  </div>
+</header>
+
+<!-- ====================== LIVE ====================== -->
+<section class="view on" id="live">
+  <div class="col left">
+    <div class="card"><h3>Crowd pressure <span class="small">p/m² · ▮ = 10-min forecast</span></h3><div id="zones"></div>
+      <div class="small" id="factors" style="margin-top:6px"></div></div>
+    <div class="card"><h3>Fragility <span class="small">next-shock stress test</span></h3>
+      <div class="gauge"><div class="gnum" id="frag">–</div><div class="small" id="fragtxt"></div></div></div>
+    <div class="card"><h3>Hospital load <span class="small">our plan vs nearest-only</span></h3><div id="hosps"></div></div>
+  </div>
+
+  <div id="mapwrap"><div id="map"></div><div class="banner" id="banner"></div>
+    <button class="mapbtn" onclick="mapFull()" title="Fullscreen map (Esc to exit)">⛶ Fullscreen</button>
+    <div class="maplegend"><i style="background:#dc2626"></i>ALS<i style="background:#f97316"></i>BLS<i style="background:#2563eb"></i>Police<i style="background:#14b8a6"></i>Medic<i style="background:#a855f7"></i>Volunteer<i style="background:#0ea5e9"></i>Water
+      &nbsp;· ring: <span style="color:#fff">free</span> / <span style="color:#facc15">en route</span> / <span style="color:#ef4444">on scene</span> / <span style="color:#22c55e">to hospital</span></div>
+  </div>
+
+  <div id="bottom">
+    <div id="chartbox"><div class="small"><b style="color:#e8eef6">Twin futures</b> · Zone B p/m² · <span style="color:#5eead4">━ live (your decisions)</span> <span style="color:#f87171">┅ no-action twin</span> · <span id="twinsum"></span></div>
+      <svg id="chart" width="100%" height="170"></svg></div>
+    <div id="logbox"></div>
+  </div>
+
+  <div class="col right">
+    <div class="card"><h3>Needs human decision <span id="pcount" class="chip danger">0</span></h3><div id="approvals"></div></div>
+    <div class="card"><h3>Open incidents <span class="small">harm if help is delayed 0→30 min</span></h3><div id="incs"></div></div>
+    <div class="card"><h3>Plan diff <span class="small" id="diffv"></span></h3><div class="diff" id="diff"></div></div>
+    <div class="card"><h3>Why</h3><div id="reasons"></div></div>
+    <div class="card"><h3>Announcements <span class="small">review, then broadcast</span></h3><div id="anns"></div></div>
+    <div class="card"><h3>New field report <span class="small">any language</span></h3>
+      <textarea id="rep" placeholder="e.g.  Zone D-la oru aal mayakkam  ·  குழந்தை காணவில்லை zone A  ·  fire near gate 3  ·  someone collapsed"></textarea>
+      <div class="btns" style="margin-top:6px"><button class="pri" onclick="sendReport()">Send to Triage Agent</button><button id="micbtn" onclick="voiceReport()" title="Speak the report (Tamil, falls back to Indian English)">🎤 Speak</button><span class="small" id="llm"></span></div></div>
+  </div>
+</section>
+
+<!-- ====================== PERMIT ====================== -->
+<section class="view" id="permit"><div class="page">
+  <h1>Before the event — Permit Stress-Test</h1>
+  <div class="mut">Plan for the crowd that will come, not the crowd that is declared. Police enter the organiser's application; the tool tests it against 1×, 2× and 2.7× turnout and a long delay of the main guest.</div>
+  <div class="presets noprint">
+    <button onclick="preset('karur')">Rally, 10k declared, 3-hr delay (Karur-like pattern, synthetic)</button>
+    <button onclick="preset('temple')">Temple festival</button>
+    <button onclick="preset('stadium')">Stadium victory parade</button>
+  </div>
+  <div class="grid2">
+    <div class="card form">
+      <label>Declared crowd <input id="p_declared" type="number" value="10000"></label>
+      <label>Usable ground area (m²) <input id="p_area" type="number" value="12000"></label>
+      <label>Total exit width (m) <input id="p_exit" type="number" value="20"></label>
+      <label>Ambulances on site <input id="p_amb" type="number" value="6"></label>
+      <label>Possible delay of main guest (min) <input id="p_delay" type="number" value="180"></label>
+      <label>Forecast heat (°C) <input id="p_heat" type="number" value="36"></label>
+      <button class="pri" style="width:100%;margin-top:6px" onclick="runPermit()">Run stress-test</button>
+      <div class="small" style="margin-top:10px">Transparent planning model. Assumptions are shown below the results and can be edited in <code>backend/permit.py</code>. It does not replace NDMA guidance or the state SOP for rallies.</div>
+    </div>
+    <div><div class="vgrid" id="verdicts"></div>
+      <h2>Conditions for permission</h2><div class="card" id="conds"><span class="mut">Run the test.</span></div></div>
+  </div>
+  <h2>Assumptions</h2><div class="card kv" id="assum"></div>
+</div></section>
+
+<!-- ====================== REPORT ====================== -->
+<section class="view" id="report"><div class="page">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px">
+    <div><h1>After-Action Report</h1><div class="mut" id="aarsub">Auto-generated from the audit log. Every alert, decision and who approved it — with timings.</div></div>
+    <div class="noprint btns"><button onclick="loadAAR()">Refresh</button><button class="pri" onclick="window.print()">Print / Save PDF</button></div>
+  </div>
+  <h2>Outcome vs the no-action twin</h2><div class="big2" id="aarstats"></div>
+  <div class="card" style="margin-top:12px"><svg id="aarchart" width="100%" height="200"></svg></div>
+  <h2>Decisions and decision latency</h2><div class="card"><table class="tbl" id="aardec"></table></div>
+  <h2>Incidents</h2><div class="card"><table class="tbl" id="aarinc"></table></div>
+  <h2>Hospitals</h2><div class="card"><table class="tbl" id="aarhos"></table></div>
+  <h2>Timeline</h2><div class="card" id="aartl" style="font-family:Consolas,monospace;font-size:12px"></div>
+</div></section>
+
+<script>
+const TYPE_COL={ALS:'#dc2626',BLS:'#f97316',POL:'#2563eb',MED:'#14b8a6',VOL:'#a855f7',WAT:'#0ea5e9'};
+const RING={available:'#ffffff',en_route:'#facc15',on_scene:'#ef4444',transporting:'#22c55e',unavailable:'#6b7280'};
+const RISK_COL={normal:'#22c55e',elevated:'#eab308',watch:'#f59e0b',danger:'#ef4444',critical:'#dc2626'};
+const AG_COL={'Crowd Pressure Agent':'#c4b5fd','Incident Triage Agent':'#5eead4','Resource Allocation Agent':'#93c5fd',
+  'Corridor & Route Agent':'#fcd34d','Hospital Surge Agent':'#f9a8d4','Command Agent':'#fca5a5','Commander (human)':'#86efac','Field report':'#e5e7eb'};
+const HOT=/SILENT ALARM|STALL|COVERAGE GAP|CRUSH|NEEDS HUMAN|CRITICAL/;
+let S=null, playing=false, timer=null, previews={}, explains={};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ---------- tabs ----------
+document.querySelectorAll('.tabs button[data-v]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on')); document.getElementById(b.dataset.v).classList.add('on');
+  document.getElementById('simctrls').style.visibility=b.dataset.v==='live'?'visible':'hidden';
+  if(b.dataset.v==='live') setTimeout(()=>map.invalidateSize(),50);
+  if(b.dataset.v==='report') loadAAR();
+  if(b.dataset.v==='permit' && !document.getElementById('verdicts').innerHTML) runPermit();
+});
+
+// ---------- map ----------
+const map=L.map('map',{zoomControl:true,attributionControl:true}).setView([11.033,77.02],13);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,className:'darktiles',attribution:'© OpenStreetMap'}).addTo(map);
+const layers={roads:L.layerGroup().addTo(map),zones:L.layerGroup().addTo(map),gates:L.layerGroup().addTo(map),
+  hosp:L.layerGroup().addTo(map),inc:L.layerGroup().addTo(map),lines:L.layerGroup().addTo(map),units:L.layerGroup().addTo(map)};
+function view(v){ if(v==='venue') map.setView([11.0354,77.0412],17); else map.setView([11.033,77.02],13); }
+
+// ---------- api ----------
+async function api(path,body){
+  try{
+    const r=await fetch('/api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    S=await r.json(); render();
+  }catch(e){  // server down or error: stop auto-play and say so instead of failing silently
+    if(playing) togglePlay();
+    document.getElementById('clock').textContent='⚠ server not responding';
+  }
+}
+async function poll(){ try{ const r=await fetch('/api/state'); S=await r.json(); render(); }catch(e){} }
+let demoId=0;
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+function togglePlay(){
+  demoId++; playing=!playing; document.getElementById('playbtn').textContent=playing?'⏸ Pause':'▶ Play';
+  clearInterval(timer); if(playing) timer=setInterval(()=>api('step',{n:1}),+document.getElementById('speed').value);
+}
+document.getElementById('speed').onchange=()=>{ if(playing){playing=false;togglePlay();} };
+// Scripted Run 1: reset, T+1, show the cards, preview "Open Gate 4", then play to T+14 with no approvals.
+async function demo(){
+  if(playing) togglePlay();
+  const id=++demoId, alive=()=>playing&&id===demoId;
+  playing=true; document.getElementById('playbtn').textContent='⏸ Pause';
+  await api('reset'); await api('step',{n:1}); await wait(4000);
+  if(!alive()) return;
+  await preview('open_G4'); await wait(6000);  // time to read the Approve vs Reject table
+  while(alive()&&S.minute<14){ await api('step',{n:1}); await wait(1500); }
+  if(alive()) togglePlay();
+}
+function mapFull(){ const el=document.getElementById('mapwrap'); document.fullscreenElement?document.exitFullscreen():el.requestFullscreen(); }
+document.addEventListener('fullscreenchange',()=>setTimeout(()=>map.invalidateSize(),100));
+function togglePanel(){ document.getElementById('live').classList.toggle('nopanel'); setTimeout(()=>map.invalidateSize(),50); }
+// Voice report: Web Speech API, Tamil first, Indian English if Tamil is not available. Fills the textarea only;
+// the commander still reviews and presses Send.
+function voiceReport(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition, msg=document.getElementById('llm'), btn=document.getElementById('micbtn');
+  if(!SR){ msg.textContent='Voice input needs Chrome or Edge. Type the report instead.'; return; }
+  const listen=lang=>{ const r=new SR(); r.lang=lang; r.interimResults=false;
+    btn.textContent='🎙 Listening ('+lang+')…'; btn.disabled=true;
+    r.onresult=e=>{ const t=e.results[0][0].transcript, ta=document.getElementById('rep'); ta.value=(ta.value?ta.value+' ':'')+t; msg.textContent='Heard ('+lang+'). Check it, then Send.'; };
+    r.onerror=e=>{ if(lang==='ta-IN'&&e.error==='language-not-supported') return listen('en-IN');
+      msg.textContent=e.error==='not-allowed'?'Microphone blocked: allow it in the address bar.':e.error==='network'?'Voice needs internet in Chrome. Type instead.':'Voice error: '+e.error; };
+    r.onend=()=>{ btn.textContent='🎤 Speak'; btn.disabled=false; };
+    r.start(); };
+  listen('ta-IN');
+}
+async function sendReport(){ const t=document.getElementById('rep').value; if(!t.trim())return; document.getElementById('rep').value=''; await api('report',{text:t}); }
+async function explain(v,i){ explains[v+':'+i]={en:'Explaining…',source:''}; render();
+  try{ explains[v+':'+i]=await (await fetch(`/api/explain?v=${v}&i=${i}`)).json(); }
+  catch(e){ explains[v+':'+i]={en:'Could not reach the server.',source:''}; } render(); }
+async function decide(id,d){ await api('decide',{id,decision:d}); }
+async function preview(id){
+  const el=document.getElementById('pv_'+id); if(el) el.innerHTML='<div class="small">Simulating the next 10 minutes twice…</div>';
+  try{ const r=await fetch('/api/preview/'+encodeURIComponent(id)); previews[id]={minute:S.minute,data:await r.json()}; render(); }
+  catch(e){ if(el) el.innerHTML='<div class="small bad">Preview failed: server not responding.</div>'; }
+}
+function speak(text,lang){
+  try{ const u=new SpeechSynthesisUtterance(text); u.lang=lang; u.rate=.95;
+    const v=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.toLowerCase().startsWith(lang.slice(0,2)));
+    if(v)u.voice=v; else if(lang!=='en-IN'){ alert('No '+lang+' voice on this laptop. Install it in Windows Settings > Time & language > Speech.'); return; }
+    speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){}
+}
+
+// ---------- render ----------
+function render(){
+  if(!S) return;
+  const v=S.venue;
+  document.getElementById('clock').textContent='T+'+S.minute+' min';
+  const ppl=document.getElementById('people'); ppl.textContent=S.total_people.toLocaleString('en-IN'); ppl.className=S.total_people>12000?'bad':'';
+  document.getElementById('heat').innerHTML=`<span class="${v.heat_c>=35?'warn':''}">${v.heat_c}°C</span>`;
+  document.getElementById('power').innerHTML=v.power?'<span class="good">ON</span>':'<span class="bad">FAILED</span>';
+  document.getElementById('delay').innerHTML=v.event_halted?'<span class="good">HALTED</span>':(v.vip_delay_min?`<span class="bad">+${v.vip_delay_min}m</span>`:'on time');
+  document.getElementById('planv').textContent='v'+S.plan_version;
+
+  // zones + coverage
+  let zh='';
+  for(const [id,z] of Object.entries(S.zones)){
+    const pct=Math.min(100,z.density/7*100), fpct=Math.min(98,z.forecast/7*100);
+    const c=(S.coverage||{})[id]||{gap:[]};
+    const pe=c.police_eta==null?'none':c.police_eta.toFixed(0)+'m', ae=c.aid_eta==null?'none':c.aid_eta.toFixed(0)+'m';
+    zh+=`<div class="zone"><div class="top"><span>${esc(z.name)}</span><span class="chip ${z.risk}">${z.risk}</span></div>
+      <div class="small">${z.count.toLocaleString('en-IN')} people · <b style="color:#fff">${z.density}</b> now → <b style="color:${z.forecast>=5?'#fca5a5':'#e8eef6'}">${z.forecast}</b> in 10 min</div>
+      <div class="bar"><div class="fill" style="width:${pct}%;background:${RISK_COL[z.risk]}"></div><div class="th" style="left:${4/7*100}%"></div><div class="th" style="left:${5/7*100}%"></div><div class="fc" style="left:${fpct}%"></div></div>
+      <div class="cov"><span class="${c.gap.includes('police')?'gap':''}">free police ${pe}</span><span class="${c.gap.includes('first_aid')?'gap':''}">first aid ${ae}</span></div></div>`;
+  }
+  document.getElementById('zones').innerHTML=zh;
+  document.getElementById('factors').textContent=S.crowd_factors.length?'Aggravating: '+S.crowd_factors.join(' · '):'';
+
+  // fragility
+  const f=S.fragility||{}; const fe=document.getElementById('frag'); fe.textContent=f.score??'–';
+  fe.style.color=f.score>=60?'#ef4444':f.score>=35?'#f59e0b':'#22c55e';
+  document.getElementById('fragtxt').innerHTML=`If one more crush hits Zone ${f.shock_zone||'?'} now, <b>${Math.round((f.shock_unmet_share||0)*100)}%</b> of its needs go unmet in time.<br>Idle ambulances: ${(f.idle_ambulances||[]).join(', ')||'<span class="bad">none</span>'}${(f.reserve||[]).length?' · reserve: '+f.reserve.join(', '):''}${f.best_reserve&&!(f.reserve||[]).length?`<br>Best to hold back: <b>${f.best_reserve}</b> (if it is sent elsewhere, fragility → ${f.if_lost[f.best_reserve]})`:''}`;
+
+  // hospitals
+  const hp=S.hospital_plan||{projected:{},naive:{}}; let hh='';
+  const hb=(val,cap,col)=>`<div class="bar"><div class="fill" style="width:${Math.min(100,val/Math.max(1,cap)*100)}%;background:${val>cap?'#ef4444':col}"></div></div>`;
+  for(const h of S.hospitals){
+    const p=hp.projected[h.id]||{red:0,yellow:0}, n=hp.naive[h.id]||{red:0,yellow:0};
+    hh+=`<div class="hosp"><div style="font-size:12px">${esc(h.name.split(' (')[0])} <span class="small">free ${h.cap_red}R / ${h.cap_yellow}Y</span></div>
+      <div class="hrow"><span>Plan</span>${hb(p.red,h.cap_red,'#f87171')}<b style="color:${p.red>h.cap_red?'#ef4444':'#e5e7eb'}">${p.red}R</b>${hb(p.yellow,h.cap_yellow,'#facc15')}<b>${p.yellow}Y</b></div>
+      <div class="hrow"><span>Nearest</span>${hb(n.red,h.cap_red,'#475569')}<b style="color:${n.red>h.cap_red?'#ef4444':'#8a98ab'}">${n.red}R</b>${hb(n.yellow,h.cap_yellow,'#475569')}<b style="color:${n.yellow>h.cap_yellow?'#ef4444':'#8a98ab'}">${n.yellow}Y</b></div></div>`;
+  }
+  if((hp.overload_naive||[]).length) hh+=`<div class="small" style="color:#fca5a5">Nearest-only would overload ${hp.overload_naive.map(id=>S.hospitals.find(h=>h.id===id).name.split(' (')[0]).join(', ')}. Our plan: ${hp.overload_plan.length?'<b>overload</b>':'no hospital over capacity'}.</div>`;
+  document.getElementById('hosps').innerHTML=hh;
+
+  // approvals with decision preview
+  const pend=S.approvals.filter(a=>a.status==='pending'); document.getElementById('pcount').textContent=pend.length;
+  document.getElementById('approvals').innerHTML=S.approvals.slice(0,9).map(a=>{
+    if(a.status!=='pending') return `<div class="appr done"><b style="font-size:12px">${esc(a.title)}</b><span class="small">${a.status.toUpperCase()} at T+${a.decided_at} (raised T+${a.minute}, waited ${a.decided_at-a.minute} min)</span></div>`;
+    const pv=previews[a.id]&&previews[a.id].minute===S.minute?previews[a.id].data:null;
+    let pvh='';
+    if(pv&&pv.approve){
+      const y=pv.approve,n=pv.reject;
+      const row=(label,yv,nv,lowerBetter=true,fmt=x=>x)=>{const yb=lowerBetter?yv<nv:yv>nv, nb=lowerBetter?nv<yv:nv>yv;
+        return `<tr><td>${label}</td><td class="${yb?'better':nb?'worse':''}">${fmt(yv)}</td><td class="${nb?'better':yb?'worse':''}">${fmt(nv)}</td></tr>`;};
+      pvh=`<div class="pv"><table><tr><th>Next ${pv.horizon} min</th><th>Approve</th><th>Reject</th></tr>
+        ${row('Crowd crush',y.crush?1:0,n.crush?1:0,true,x=>x?'YES':'no')}
+        ${row('Peak Zone B p/m²',y.peak_B,n.peak_B)}
+        ${row('Unmet needs',y.unmet,n.unmet)}
+        ${row('Fragility',y.fragility,n.fragility)}
+        ${row('Patients at hospital',y.delivered,n.delivered,false)}
+        ${row('People inside',y.people,n.people,true,x=>x.toLocaleString('en-IN'))}</table>
+        <ul>${pv.verdict.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`;
+    }
+    return `<div class="appr ${a.risk}"><b>${esc(a.title)}</b><p>${esc(a.detail)}</p>
+      <div class="btns"><button class="ok" onclick="decide('${a.id}','approve')">Approve</button><button class="no" onclick="decide('${a.id}','reject')">Reject</button>
+      <button onclick="preview('${a.id}')" title="Simulate both choices before deciding">🔮 Preview</button><span class="small">raised T+${a.minute}</span></div>
+      <div id="pv_${a.id}">${pvh}</div></div>`;
+  }).join('')||'<div class="small">Nothing needs a human right now.</div>';
+
+  // open incidents + time-criticality sparklines (same y-scale for all: steeper = every minute costs more)
+  const open=S.incidents.filter(i=>i.status==='open').sort((a,b)=>b.weight-a.weight);
+  const wmax=Math.max(1,...open.map(i=>i.weight));
+  document.getElementById('incs').innerHTML=open.map(i=>`<div class="incrow"><span><b>${i.id}</b> ${esc(i.title)} · ${esc(i.location)} · sev ${i.severity}</span>
+    <svg width="70" height="22" aria-label="priority weight ${i.weight}"><line x1="1" y1="21" x2="69" y2="21" stroke="#2e3d55"/><polyline fill="none" stroke="${i.weight>=wmax*0.6?'#f87171':'#93c5fd'}" stroke-width="2" points="1,21 69,${21-20*i.weight/wmax}"/></svg>
+    <span class="small">w ${i.weight}</span></div>`).join('')||'<div class="small">No open incidents.</div>';
+
+  // diff + reasons
+  const d=S.last_diff; document.getElementById('diffv').textContent=d?`v${d.version} · T+${d.minute}`:'';
+  document.getElementById('diff').innerHTML=d&&d.items.length?d.items.map((x,i)=>{ const ex=explains[d.version+':'+i];
+    return `<div class="d-${x.kind}">${esc(x.text)} <button class="xs" onclick="explain(${d.version},${i})">Explain</button>${ex?`<div class="expl">${esc(ex.en)}${ex.ta?`<div class="ta">${esc(ex.ta)}</div>`:''}<div class="small">${ex.source==='claude'?'Claude (wording only, plan unchanged)':'template reason'}</div></div>`:''}</div>`;}).join(''):'<div class="small">Initial plan.</div>';
+  document.getElementById('reasons').innerHTML=(S.reasons||[]).map(r=>`<div class="reason">• ${esc(r)}</div>`).join('')||'<div class="small">–</div>';
+
+  // announcements
+  document.getElementById('anns').innerHTML=S.announcements.slice(0,2).map(a=>`<div class="ann"><div class="small">T+${a.minute} · Zone ${a.zone} → ${a.gate}</div>
+    <div class="ta">${esc(a.ta)}</div><div class="en">${esc(a.en)}</div>
+    <div class="btns" style="margin-top:6px"><button onclick='speak(${JSON.stringify(a.ta)},"ta-IN")'>🔊 தமிழ்</button>
+    <button onclick='speak(${JSON.stringify(a.en)},"en-IN")'>🔊 English</button><button onclick='speak(${JSON.stringify(a.hi)},"hi-IN")'>🔊 हिंदी</button></div></div>`).join('')||'<div class="small">No announcements yet.</div>';
+
+  // log
+  document.getElementById('logbox').innerHTML=S.log.map(l=>`<div class="logline ${HOT.test(l.msg)?'hot':''}" title="${esc(l.msg)}"><span class="t">T+${String(l.minute).padStart(2,'0')}</span> <span class="ag" style="color:${AG_COL[l.agent]||'#ddd'}">${esc(l.agent)}</span> — ${esc(l.msg)}</div>`).join('');
+
+  // banner
+  const bn=document.getElementById('banner'); const crush=S.incidents.find(i=>i.type==='crush'&&i.status==='open');
+  const silent=S.incidents.find(i=>i.silent_alarm&&i.status==='open'&&i.type==='pressure');
+  if(crush){bn.className='banner show b-crush';bn.textContent=`CROWD CRUSH · Zone ${crush.location} · est. ${crush.casualties.red} red / ${crush.casualties.yellow} yellow`;}
+  else if(S.averted){bn.className='banner show b-avert';bn.textContent='CRUSH AVERTED — the no-action twin had a crush at T+'+(S.baseline&&S.baseline.crush_minute);}
+  else if(silent){bn.className='banner show b-warn';bn.textContent='SILENT ALARM · Zone '+silent.location+' · '+silent.reports+' independent crowding reports';}
+  else bn.className='banner';
+
+  drawChart(document.getElementById('chart'),S.series,S.baseline&&S.baseline.series,S.crush_minute,S.baseline&&S.baseline.crush_minute,S.minute);
+  const b=S.baseline||{};
+  document.getElementById('twinsum').innerHTML=`live: ${S.crush_minute!=null?'<span class="bad">crush at T+'+S.crush_minute+'</span>':'<span class="good">no crush</span>'} · twin: ${b.crush_minute!=null?'<span class="bad">crush at T+'+b.crush_minute+'</span>':'no crush yet'}`;
+  drawMap();
+}
+
+function drawChart(svg,live,twin,cm,tm,now){
+  const W=svg.clientWidth||600,H=+svg.getAttribute('height'),pl=30,pr=10,pt=8,pb=18;
+  const maxM=Math.max(20,now+2), maxY=8;
+  const x=m=>pl+(W-pl-pr)*m/maxM, y=d=>pt+(H-pt-pb)*(1-Math.min(d,maxY)/maxY);
+  let g='';
+  g+=`<rect x="${pl}" y="${y(maxY)}" width="${W-pl-pr}" height="${y(5)-y(maxY)}" fill="#7f1d1d" opacity=".22"/>`;
+  g+=`<rect x="${pl}" y="${y(5)}" width="${W-pl-pr}" height="${y(4)-y(5)}" fill="#b45309" opacity=".18"/>`;
+  for(const t of [0,2,4,6,8]) g+=`<text x="${pl-6}" y="${y(t)+3}" fill="#8a98ab" font-size="12" text-anchor="end">${t}</text><line x1="${pl}" x2="${W-pr}" y1="${y(t)}" y2="${y(t)}" stroke="#1a2433"/>`;
+  for(let m=0;m<=maxM;m+=5) g+=`<text x="${x(m)}" y="${H-4}" fill="#8a98ab" font-size="12" text-anchor="middle">T+${m}</text>`;
+  g+=`<text x="${W-pr-4}" y="${y(5)-3}" fill="#fca5a5" font-size="12" text-anchor="end">crush danger ≥5</text>`;
+  const path=(s,col,dash)=>s&&s.length?`<polyline fill="none" stroke="${col}" stroke-width="2.4" ${dash?'stroke-dasharray="5 4"':''} points="${s.map(r=>x(r.m)+','+y(r.B)).join(' ')}"/>`:'';
+  g+=path(twin,'#f87171',true)+path(live,'#5eead4',false);
+  const mark=(m,col,label)=>m!=null?`<line x1="${x(m)}" x2="${x(m)}" y1="${pt}" y2="${H-pb}" stroke="${col}" stroke-width="1.5" stroke-dasharray="3 3"/><text x="${x(m)+4}" y="${pt+10}" fill="${col}" font-size="12">${label}</text>`:'';
+  g+=mark(tm,'#f87171','twin crush');
+  if(cm!=null){ g+=`<line x1="${x(cm)}" x2="${x(cm)}" y1="${pt}" y2="${H-pb}" stroke="#5eead4" stroke-width="1.5" stroke-dasharray="3 3"/><text x="${x(cm)+4}" y="${pt+24}" fill="#5eead4" font-size="12">live crush</text>`; }
+  g+=`<line x1="${x(now)}" x2="${x(now)}" y1="${pt}" y2="${H-pb}" stroke="#e8eef6" opacity=".35"/>`;
+  svg.innerHTML=g;
+}
+
+function drawMap(){
+  Object.values(layers).forEach(l=>l.clearLayers());
+  for(const r of S.roads){
+    const col=r.blocked?'#ef4444':r.kind==='corridor'?(r.corridor_closed?'#6b7280':'#22c55e'):r.kind==='venue'?'#64748b':'#3b4a60';
+    L.polyline([r.a,r.b],{color:col,weight:r.kind==='road'?3:4,opacity:.85,dashArray:r.blocked||r.corridor_closed?'6 6':null})
+      .bindTooltip(r.name+(r.blocked?' — BLOCKED':'')+(r.kind==='corridor'?(r.corridor_closed?' — closed':' — OPEN'):'')).addTo(layers.roads);
+  }
+  for(const [id,z] of Object.entries(S.zones)){
+    const gap=((S.coverage||{})[id]||{gap:[]}).gap;
+    L.circle([z.lat,z.lng],{radius:z.radius,color:gap.length?'#ffffff':RISK_COL[z.risk],dashArray:gap.length?'4 4':null,fillColor:RISK_COL[z.risk],fillOpacity:.35,weight:2})
+      .bindTooltip(`${z.name}<br>${z.density} p/m² now → ${z.forecast} forecast${gap.length?'<br>COVERAGE GAP: no free '+gap.join(', '):''}`).addTo(layers.zones);
+    L.marker([z.lat,z.lng],{icon:L.divIcon({className:'',html:`<div class="zlbl">${id} · ${z.density}</div>`,iconSize:[70,18]})}).addTo(layers.zones);
+  }
+  for(const [id,g] of Object.entries(S.gates)){
+    L.marker([g.lat,g.lng],{icon:L.divIcon({className:'',html:`<div class="g-ic" style="background:${g.open?'#16a34a':'#b91c1c'}">${id.slice(1)}</div>`,iconSize:[20,20]})})
+      .bindTooltip(`${g.name}: ${g.open?'OPEN':'CLOSED'}`).addTo(layers.gates);
+  }
+  for(const h of S.hospitals){
+    L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:'<div class="h-ic">H</div>',iconSize:[22,22]})})
+      .bindTooltip(`${h.name}<br>received: ${h.load_red} red / ${h.load_yellow} yellow`).addTo(layers.hosp);
+  }
+  const incPos={};
+  for(const i of S.incidents){
+    if(i.status!=='open') continue;
+    const z=S.zones[i.location]; const node={J_HOPE:[11.0290,77.0180]}[i.location];
+    const p=z?[z.lat+0.00012,z.lng+0.00014]:node; if(!p) continue; incPos[i.id]=p;
+    L.marker(p,{icon:L.divIcon({className:'',html:`<div class="i-ic ${i.severity>=5?'i-pulse':''}">${i.type==='unit_blocked'?'⛔':'!'}</div>`,iconSize:[22,22]})})
+      .bindTooltip(`${i.id} ${esc(i.title)} · sev ${i.severity}/5 · conf ${i.confidence}<br>${esc(i.summary)}`).addTo(layers.inc);
+  }
+  for(const u of S.units){
+    if(u.status==='en_route'&&incPos[u.incident]) L.polyline([[u.lat,u.lng],incPos[u.incident]],{color:'#facc15',weight:1.5,dashArray:'4 4'}).addTo(layers.lines);
+    if(u.status==='transporting'&&u.hospital){ const h=S.hospitals.find(x=>x.id===u.hospital); L.polyline([[u.lat,u.lng],[h.lat,h.lng]],{color:'#22c55e',weight:1.5,dashArray:'4 4'}).addTo(layers.lines);}
+    const stall=u.no_progress>0&&u.status==='en_route';
+    const html=`<div class="u-ic ${stall?'u-stall':''}" style="background:${TYPE_COL[u.type]};border-color:${RING[u.status]};${u.reserve?'outline:2px dashed #fff':''}">${u.id}</div>`;
+    L.marker([u.lat,u.lng],{icon:L.divIcon({className:'',html,iconSize:[30,30]}),zIndexOffset:500})
+      .bindTooltip(`${u.id} ${u.label}<br>${u.status}${u.incident?' → '+u.incident:''}${u.eta_left?' · '+u.eta_left+' min':''}${stall?'<br>⚠ not moving':''}`).addTo(layers.units);
+  }
+}
+
+// ---------- permit ----------
+const PRESETS={karur:[10000,12000,20,6,180,36],temple:[50000,40000,60,15,0,34],stadium:[30000,15000,24,8,90,33]};
+function preset(k){ const v=PRESETS[k]; ['p_declared','p_area','p_exit','p_amb','p_delay','p_heat'].forEach((id,i)=>document.getElementById(id).value=v[i]); runPermit(); }
+async function runPermit(){
+  const g=id=>+document.getElementById(id).value;
+  const r=await fetch('/api/permit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({declared:g('p_declared'),area_m2:g('p_area'),exit_width_m:g('p_exit'),ambulances:g('p_amb'),delay_min:g('p_delay'),heat_c:g('p_heat')})});
+  const d=await r.json();
+  document.getElementById('verdicts').innerHTML=d.rows.map(x=>`<div class="vcard"><div class="small">Turnout ${x.multiplier}× → <b style="color:#fff">${x.crowd.toLocaleString('en-IN')}</b> people</div>
+    <div class="v v-${x.verdict}">${x.verdict}</div>
+    <div class="kv"><span>Average density</span><b>${x.avg_density} p/m²</b><span>Stage front after wait</span><b class="${x.stage_peak>=5?'bad':''}">${x.stage_peak>7?'>7 (crush)':x.stage_peak} p/m²</b>
+    <span>Minutes until danger at stage</span><b>${x.minutes_to_danger??'—'}</b><span>Time to empty ground</span><b>${x.egress_min} min</b><span>Ambulances needed</span><b>${x.ambulances_needed}</b></div>
+    <ul>${x.issues.map(i=>`<li>${esc(i)}</li>`).join('')||'<li>No issues found.</li>'}</ul></div>`).join('');
+  document.getElementById('conds').innerHTML=`<div class="small" style="margin-bottom:6px">Safe capacity at planning density: <b style="color:#fff">${d.safe_capacity.toLocaleString('en-IN')}</b> · exit width needed for worst case: <b style="color:#fff">${d.exit_width_needed_m} m</b></div><ol style="margin:0;padding-left:18px">${d.conditions.map(c=>`<li style="margin-bottom:4px">${esc(c)}</li>`).join('')}</ol>`;
+  document.getElementById('assum').innerHTML=Object.entries(d.assumptions).map(([k,v])=>`<span>${k.replace(/_/g,' ')}</span><b>${v}</b>`).join('');
+}
+
+// ---------- after-action report ----------
+async function loadAAR(){
+  const d=await (await fetch('/api/aar')).json();
+  document.getElementById('aarsub').textContent=`Generated at T+${d.minute}. Every alert, decision and who approved it — with timings. Synthetic scenario.`;
+  const b=d.baseline||{};
+  document.getElementById('aarstats').innerHTML=`
+    <div class="stat"><div class="small">WITH NERISAL ZERO (your decisions)</div><div class="n ${d.live.crush_minute!=null?'bad':'good'}">${d.live.crush_minute!=null?'Crush at T+'+d.live.crush_minute:'No crush'}</div><div class="small">Peak Zone B density ${d.live.peak_B} p/m²</div></div>
+    <div class="stat"><div class="small">NO-ACTION TWIN (same crowd, same events)</div><div class="n ${b.crush_minute!=null?'bad':'good'}">${b.crush_minute!=null?'Crush at T+'+b.crush_minute:'No crush'}</div><div class="small">Peak Zone B density ${b.peak_B} p/m²</div></div>`;
+  drawChart(document.getElementById('aarchart'),d.live.series,b.series,d.live.crush_minute,b.crush_minute,d.minute);
+  document.getElementById('aardec').innerHTML='<tr><th>Decision</th><th>Raised</th><th>Outcome</th><th>Decided</th><th>Waited</th></tr>'+d.decisions.map(x=>`<tr><td>${esc(x.title)}</td><td>T+${x.raised}</td><td>${x.status}</td><td>${x.decided!=null?'T+'+x.decided:'—'}</td><td class="${x.latency>3?'bad':''}">${x.latency!=null?x.latency+' min':'<span class="bad">never decided</span>'}</td></tr>`).join('');
+  document.getElementById('aarinc').innerHTML='<tr><th>ID</th><th>Incident</th><th>Where</th><th>Sev</th><th>Casualties</th><th>Status</th></tr>'+d.incidents.map(i=>`<tr><td>${i.id}</td><td>${esc(i.title)}</td><td>${i.location}</td><td>${i.severity}</td><td>${i.casualties.red}R ${i.casualties.yellow}Y ${i.casualties.green}G</td><td>${i.status}</td></tr>`).join('');
+  document.getElementById('aarhos').innerHTML='<tr><th>Hospital</th><th>Received red</th><th>Received yellow</th><th>Free beds (red/yellow)</th></tr>'+d.hospitals.map(h=>`<tr><td>${esc(h.name)}</td><td>${h.load_red}</td><td>${h.load_yellow}</td><td>${h.cap_red} / ${h.cap_yellow}</td></tr>`).join('');
+  document.getElementById('aartl').innerHTML=d.timeline.map(l=>`<div><span class="mut">T+${String(l.minute).padStart(2,'0')}</span> <b style="color:${AG_COL[l.agent]||'#ddd'}">${esc(l.agent)}</b> — ${esc(l.msg)}</div>`).join('');
+}
+
+fetch('/api/health').then(r=>r.json()).then(h=>document.getElementById('llm').textContent=h.llm?'Claude triage: ON':'Rule-based triage (add ANTHROPIC_API_KEY for Claude)');
+poll(); setInterval(()=>{ if(!playing) poll(); },3000);
+window.addEventListener('resize',()=>S&&render());
+</script>
+</body>
+</html>

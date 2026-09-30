@@ -1,0 +1,7 @@
+fastapi>=0.110
+uvicorn>=0.27
+numpy>=1.26
+scipy>=1.11
+networkx>=3.2
+# optional: Claude-powered triage (set ANTHROPIC_API_KEY)
+anthropic>=0.40
