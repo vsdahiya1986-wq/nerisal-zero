@@ -36,7 +36,9 @@ Turn Wi-Fi off, start the server, run Demo mode.
 | 6c | 📢 Public alert on the Zone B announcement | Modal: orange **EXERCISE / DEMO** label, CAP 1.2 XML with Tamil + English blocks. Copy / Download .xml, Esc closes |
 | 7 | Explain on a Plan Diff line | Reason appears under the line (template, or Claude + Tamil with a key) |
 | 8 | Approve *mutual aid* | A7, A8 join; Fragility **39 → 16** |
+| 8b | Point at the Hospital card | "Golden hour: red patients in hospital …" line. No action: only the road-accident patient gets there; A1 is stuck behind the closed corridor |
 | 9 | Play to T+13 | Log: **STALL DETECTED: A2**, police task created |
+| 9b | 👥 **Simulate 60 attendees** (Citizen Pulse card, left column) | Per-zone table fills; Zone B index about 81 % "can't move" (red); the log shows "Citizen Pulse" reports (crowding, medical) going to the Triage Agent, and a Confirm card for the medical tap. Show the QR: a judge can scan it and tap on their own phone (needs `--host 0.0.0.0`, same Wi-Fi) |
 | 10 | Judge types a report | `someone collapsed` → "Confirm details" card (no guessing) |
 
 **Hands-free alternative:** 🎬 Demo mode plays steps 2–9 (without approvals) automatically; Pause stops it.
@@ -48,7 +50,13 @@ Turn Wi-Fi off, start the server, run Demo mode.
 | 2 | Approve *Stop entry* and *Open Gate 4* | Gate 4 turns green, corridor opens |
 | 3 | ▶ Play to T+12 | Green **CRUSH AVERTED** banner. Chart: live line stays under 5, twin line crosses it. Map: Zone B dots amber (4.2 p/m²), streaming out through Gate 4 |
 | 3b | Impact card (top of right column) | Your decisions vs No action: crush **no** vs **YES (T+10)**, peak Zone B **4.68** vs **6.03**, red casualties **0** vs **4**, people-minutes above 5 p/m² **0** vs **67,834** (✓ marks the better value) |
+| 3c | **Evidence** tab (or key E) | Headline: 73 % of 200 simulated rallies stay out of crush conditions with NERISAL's advice vs 0 % with no action; 98 % of the 149 runs that were not already critical at T+0. Chart below. Say "synthetic simulation" |
 | 4 | After-action tab | Impact table at the top (same numbers), then live: no crush vs twin: crush at T+10; decision latency table |
+
+### Presenter tips
+- **A+** (or F) = presenter mode: 20 % bigger cards, agent log hidden. Press `?` for all shortcuts: Space play/pause, N +1 min, R reset, P preview, A approve first card, E Evidence, L Live.
+- The scenario ends at **T+30**: the header says "Scenario end (T+30) — press Reset" and Play stops by itself.
+- The Golden-hour table is at the bottom of the After-action tab.
 
 ## F. If something breaks
 - **Clock shows "⚠ server not responding"**: the server crashed or was closed. Close the black window, double-click `run_windows.bat` again, press ⟲ Reset, jump with +1 min / Play to where you were (≈10 s).

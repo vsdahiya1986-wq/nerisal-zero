@@ -1,31 +1,69 @@
 # NERISAL ZERO — Team WINNERS · GATEWAYS 2026 · Domain 4 (Crisis Command)
 
-நெரிசல் = crowd crush. A multi-agent command system that **sees a crowd crush coming, lets the commander test each decision
-before taking it, and re-plans the whole emergency response live** — with a human approving every risky step.
+**நெரிசல் = crowd crush. NERISAL ZERO sees a crowd crush coming, lets the commander test each decision before taking it,
+and re-plans the whole emergency response live — with a human approving every risky step.**
 
+Demo video: (link)
+
+## Why it matters
+- **120+ people died in stampedes in India in 2025.** At Karur, Tamil Nadu, 41 died.
+- **The warnings existed but nobody added them up.** Itaewon, Seoul 2022: 11 emergency calls from about 3 h 40 min before the crush; police were sent only 4 times.
+- **Detection is not the gap, response capacity is.** Maha Kumbh 2025: 2,760 AI cameras sent alerts, but when officers rushed to one spot, another stampede started elsewhere.
+- **Ambulances could not get through.** Karur: about 3× the expected crowd, a ~7-hour delay, heat and a power cut; ambulances were surrounded by the crowd.
+- **Prevention starts at the permit.** After Karur, the Madras High Court ordered Tamil Nadu to frame an SOP for rallies.
+
+## Proof
+**Evidence Lab** (`python backend/evidence.py --n 200`, 21 s on a laptop): 200 randomised rallies, the same seeds for every policy.
+Acting on NERISAL's first warnings kept Zone B out of crush conditions in **73 %** of runs, vs **0 %** with no
+action and **0 %** with late action. 51 runs were already at crush density when monitoring began
+(no warning can prevent those); of the other 149, **98 %** stayed safe with NERISAL's advice.
+Median peak Zone B density: 8.45 p/m² with no action → 4.79 p/m² with advice.
+*Synthetic model-based simulation, not real-world validation.*
+
+![Evidence Lab: crush-condition rate per policy and peak density per run](docs/evidence.png)
+
+![Architecture: inputs, six agents around one shared state, the human gate with Decision Preview and the no-action twin, outputs](docs/architecture.png)
+
+## Try it in 60 seconds
+1. Install Python 3.10+ (python.org, tick "Add Python to PATH").
+2. **Windows:** double-click `run_windows.bat` · **Mac/Linux:** `./run_mac_linux.sh` · **Manual:** `pip install -r requirements.txt` → `cd backend` → `python -m uvicorn app:app --port 8000`
+3. Open **http://localhost:8000** and press **🎬 Demo mode** (or `?` for keyboard shortcuts).
+
+Other pages: **/marshal?zone=B** (ground marshals) and **/pulse** (attendees). For phones on the same Wi-Fi, start uvicorn with
+`--host 0.0.0.0` and scan the QR code in the Citizen Pulse card. Optional Claude triage: set `ANTHROPIC_API_KEY`. Without it the
+offline Tamil/Tanglish/Hindi/English rule parser runs. Map tiles, voice input and Claude need internet; everything else works offline.
+
+## Features (one line each)
+- **Crowd forecast**: density per zone and a 10-minute forecast, with heat, delay and power loss as aggravating factors.
+- **Decision Preview 🔮**: every approval card simulates approve vs reject 10 minutes ahead before the human clicks.
+- **No-action twin + Impact card**: the same world with nobody acting; crush, casualties and people-minutes above 5 p/m², side by side.
+- **Silent Alarm**: 3+ crowding reports from one zone in 15 min become one high-priority alarm (the Itaewon lesson).
+- **Citizen Pulse**: attendees tap "I'm OK / Can't move / Medical / Lost child" on /pulse; patterns become Triage reports; each phone gets calm advice for its zone.
+- **Coverage gaps + Fragility**: which zones have no free police or first aid, and how the plan survives the next shock; mass-casualty → mutual aid.
+- **Stall detection**: an ambulance that stops moving for 2 min is noticed without any report, and police are sent (the Karur lesson).
+- **Golden hour**: every red/yellow patient from injury to hospital. No action → only 1 of 5 red patients in hospital by T+30; opening Gate 4 at T+10 → the first crush patient reaches hospital at T+20.
+- **Hospital Surge**: patients spread by free beds instead of "everyone to the nearest hospital".
+- **Living crowd view**: animated dots (1 ≈ 50 people) pack toward the stage and drain through Gate 4 when it opens.
+- **Public alert**: CAP 1.2 XML (the international public-warning standard) in Tamil + English, plus a 160-character SMS; always labelled Exercise.
+- **Permit Stress-Test**: test the organiser's plan at 1×, 2× and 2.7× turnout before granting permission.
+- **After-action report**: timeline, who approved what and how long each alert waited (decision latency), golden-hour table; printable.
+- **Evidence Lab**: 200 simulated rallies × 3 human policies (tab "Evidence").
+- **Presenter mode + shortcuts**: `A+` for 20 % bigger text; Space, N, R, P, A, E, F keys.
+
+## Honest limits
+All data is synthetic; hospital capacities and crowd numbers are not real. The crowd model is a zone-flow model, not physics.
+Density thresholds and the permit model's assumptions are editable planning values, not official standards. The Evidence Lab tests
+the model against itself on randomised inputs; it is not real-world validation.
+
+## Project files
 - `CLAUDE.md` – project brief for Claude Code (read automatically).
-- `docs/BRAINSTORM.md` – the research behind every feature, and the "what next" list.
-- `docs/BUILD_PROMPTS.md` – copy-paste Claude Code prompts for the 24 hours, per person.
+- `docs/BRAINSTORM.md` – the research behind every feature, and the "what next" list. `docs/JUDGE_QA.md`, `docs/PITCH.md`.
+- `docs/DEMO_CHECKLIST.md` – click-by-click demo runs and the recovery plan.
 - `tests/` – demo invariants. `python -m pytest -q` must stay green.
 
 ---
 
-## 1. Run it (5 minutes)
-Python 3.10+ (python.org, tick "Add Python to PATH").
-
-- **Windows:** double-click `run_windows.bat` → opens http://localhost:8000
-- **Mac/Linux:** `./run_mac_linux.sh`
-- **Manual:** `pip install -r requirements.txt` → `cd backend` → `python -m uvicorn app:app --port 8000`
-
-Pages: **http://localhost:8000** (Live · Permit test · After-action tabs) and **http://localhost:8000/marshal?zone=B** (open on a phone
-on the same Wi-Fi using the laptop's IP, e.g. http://192.168.x.x:8000/marshal — start uvicorn with `--host 0.0.0.0`).
-
-Optional Claude triage: set `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` (a current model id from docs.claude.com). Without it, the
-offline Tamil/Tanglish/Hindi/English rule parser runs. The map tiles need internet; everything else works offline.
-
----
-
-## 2. What's inside — six agents + four "out of the box" layers
+## What's inside — six agents + four "out of the box" layers
 
 | Agent | Job |
 |---|---|
@@ -49,14 +87,7 @@ offline Tamil/Tanglish/Hindi/English rule parser runs. The map tiles need intern
 
 ---
 
-## What's new tonight
-- **Impact score** – card at the top of the right column (and the top of the After-action report): your decisions vs the no-action twin. Run 2 at T+12: crush no vs YES (T+10), peak Zone B 4.68 vs 6.03 p/m², red casualties 0 vs 4, people-minutes above 5 p/m² 0 vs 67,834.
-- **Public alert (CAP 1.2)** – 📢 *Public alert* on any announcement opens the alert as Common Alerting Protocol XML (Tamil + English, status *Exercise*), with Copy and Download. It is the format public warning systems ingest. Always labelled EXERCISE / DEMO.
-- **Living crowd view** – animated dots on the map, 1 dot ≈ 50 people, coloured by density (teal < 4, amber ≥ 4, red ≥ 5 p/m²). Watch Zone B pack toward the stage, then stream out through Gate 4 once it is approved. Toggle: *Crowd view* next to Venue / City.
-
----
-
-## 3. Demo script (8 minutes) — rehearse exactly
+## Demo script (8 minutes) — rehearse exactly
 
 **0. Open (30 s).** "41 people died at Karur, 120+ in Indian stampedes in 2025. Every warning was visible. Nobody added them up."
 
@@ -85,7 +116,7 @@ below 5, twin line crosses it. "Same crowd, same heat, same power cut. One decis
 
 ---
 
-## 4. Pitch (2 minutes)
+## Pitch (2 minutes)
 > In 2025, more than 120 people died in stampedes in India. At Karur, here in Tamil Nadu, 41 died — nine of them children.
 > It was not a surprise. Three times the planned crowd, seven hours of waiting in the heat, a power cut. At Itaewon in Seoul,
 > eleven people called for help hours before the crush. At the Kumbh, AI cameras sent alerts — but police rushing to one spot
@@ -102,7 +133,7 @@ below 5, twin line crosses it. "Same crowd, same heat, same power cut. One decis
 
 ---
 
-## 5. Judge Q&A
+## Judge Q&A (short; full list in docs/JUDGE_QA.md)
 - **Where does density come from in reality?** CCTV head-counts, gate counters, anonymised mobile-network density. Simulated in the demo, as the problem statement allows.
 - **Why not let the LLM decide?** Life-critical allocation must be repeatable and auditable → optimisation. The LLM only reads language, with a rule fallback.
 - **How is the preview computed?** The engine clones the full state and runs the next 10 minutes twice, approve and reject, with the same scripted events.
@@ -112,10 +143,6 @@ below 5, twin line crosses it. "Same crowd, same heat, same power cut. One decis
 - **Scale?** Only `scenario.py` changes. The same code serves temples, stadiums, stations, the Kumbh.
 - **Whose fault was Karur?** "We don't assign blame. We fix the system failures every stampede inquiry points to."
 
-## 6. Honest limits
-All data is synthetic; hospital capacities are not real. The crowd model is a zone-flow model, not physics. Density thresholds
-and the permit model's assumptions are editable planning values, not official standards.
-
-## 7. Rules check
+## Rules check
 The hackathon says work must be created during the hackathon window. Ask the organisers whether starter code is allowed.
 If not, use this as a reference and rebuild with `docs/BUILD_PROMPTS.md` during the 24 hours.

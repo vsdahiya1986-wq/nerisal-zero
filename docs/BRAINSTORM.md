@@ -45,7 +45,7 @@ Tamil/English/Hindi announcements, plan diff with reasons, after-action report w
 - NPR, "Desperate calls for help came hours before the Seoul crowd surge turned deadly" (2 Nov 2022).
 - Context (Thomson Reuters Foundation), "Did AI fail to prevent fatal stampede at India's Kumbh festival?"
 - The Federal, "Over 120 deaths in 2025, why stampedes remain a recurring tragedy"; Karur ambulance drivers' accounts.
-- Gulf News, "Stampede at Vijay's Karur rally: delay, blackout, heat" (facts on crowd size, delay, power cut).
+- Gulf News, report on the Karur rally stampede: delay, blackout, heat (facts on crowd size, delay, power cut).
 - The Federal / Tribune / Deccan Herald: Madras High Court orders SOP for political rallies after Karur (Oct 2025).
 - G. Keith Still, gkstill.com – moving crowd density and flow.
 - Telangana AI-powered Dial 112 (Aug 2026): per-call AI; processing time 190 → 133 s.

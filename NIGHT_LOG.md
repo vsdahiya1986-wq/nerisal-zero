@@ -31,3 +31,8 @@ Shortcuts (? shows them): Space play/pause, N +1, R reset, P preview first pendi
 Measured in Chrome (iframes, no window resize): header had overflowed at 1920 px (+140 px) and would at 1366; fixed (hide subtitle ≤2100,
 KPIs/City/speed ≤1400 — same facts shown elsewhere) → last button at 1356/1366 and 1906/1920, no card overflow, no text < 12 px, both modes.
 Shortcuts verified live (R, N, A approves Open Gate 4, typing ignored, help, E/L). 47 tests.
+
+03:10 — T6 done. README top rewritten: pitch, 5 "why it matters" facts (from docs/BRAINSTORM.md), Proof line from docs/evidence.json,
+evidence.png, new docs/architecture.png (tools/architecture.py), Try it in 60 s, one-line features, honest limits, "Demo video: (link)".
+DEMO_CHECKLIST: Evidence tab, Simulate 60 attendees + QR, Golden hour line, presenter tips, T+30 end — each claim re-checked by running the engine.
+Removed a politician's name from a source title in BRAINSTORM.md (night rule 6).
