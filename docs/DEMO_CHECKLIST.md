@@ -14,7 +14,8 @@ Print this. Tick every box the night before AND 30 minutes before the slot.
 
 ## B. Wi-Fi-off test (do it once)
 Turn Wi-Fi off, start the server, run Demo mode.
-- Works offline: simulation, all agents, Preview, twin chart, Permit test, After-action, rule-based triage, Explain (template), 🔊 voices installed in Windows.
+- Works offline: simulation, all agents, Preview, twin chart, Impact card, living crowd, Permit test, After-action + golden hour, Evidence tab (results are in the repo), Public alert CAP + SMS, Citizen Pulse on this laptop incl. Simulate 60 attendees and the QR code, rule-based triage, Explain (template), 🔊 voices installed in Windows. Leaflet, QR and all scripts/styles are served from the laptop (a test enforces it).
+- Phones for /pulse and /marshal need to reach the laptop: same Wi-Fi router, or turn on the laptop's **mobile hotspot** and join it (no internet needed). With no network at all, the QR shows 127.0.0.1 — use Simulate 60 attendees instead.
 - Needs internet: **map background tiles** (roads/zones/units still draw on a dark background), **🎤 Speak** (Chrome sends audio to Google), Claude triage/Explain (falls back to rules/template automatically).
 - If venue Wi-Fi is flaky: **unset `ANTHROPIC_API_KEY`** so a typed report never waits 8 s for a timeout.
 

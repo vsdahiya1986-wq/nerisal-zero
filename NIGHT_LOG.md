@@ -44,3 +44,10 @@ claim and "holding areas" in permit conditions) and replaced them with measured 
 03:45 — T8 done. Crash sweep v2: 3,200 random actions over every endpoint (step/report/decide/preview/reset/state/aar/permit/cap/sms/
 explain/pulse/pulse-simulate/guidance/qr/evidence/evidence-run/png/pages) with Tamil/English/emoji/huge/null-byte/HTML junk and invalid
 ids → 0 server errors. Added tests/test_fuzz.py (400 actions, fixed seed) so it stays that way. 48 tests.
+
+04:05 — T9 done (no change needed). At T+30 after 60 pulse taps: /api/state 38 KB, median 5 ms (limits 300 KB / 150 ms); /api/aar 16 KB 5 ms;
+Preview 26–65 ms first call, ~8 ms cached; Evidence 13 ms; Simulate 60 attendees 16 ms; one step round-trip 20 ms (TestClient, this laptop).
+04:10 — T10 done. Only external resource: OSM map tiles. Leaflet, QR (server-side SVG), chart, all JS/CSS local. Degrades offline:
+map tiles, 🎤 Speak (Chrome → Google), Claude triage/Explain (→ rules/template), online-only Chrome voices. New tests/test_offline.py
+enforces "no external URL except tiles", local assets exist, QR works with no network (127.0.0.1), no key → rules. Checklist B updated
+(hotspot tip for phones). 51 tests.
