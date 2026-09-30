@@ -5,7 +5,7 @@ Print this. Tick every box the night before AND 30 minutes before the slot.
 ## A. Laptop setup (night before)
 - [ ] Python 3.10+ installed ("Add Python to PATH" ticked). Check: `python --version`.
 - [ ] First run done **with internet**: double-click `run_windows.bat` (creates `.venv`, installs packages). After this, no internet is needed to start.
-- [ ] `python -m pytest -q` from the project root → all green (24 tests).
+- [ ] `python -m pytest -q` from the project root → all green (55 tests).
 - [ ] Browser: Chrome or Edge, **zoom 100%**, window maximised. At 1366×768 use the `⇥ Panel` button or fullscreen map as needed.
 - [ ] Tamil voice installed: Windows Settings → Time & language → Language & region → add **Tamil** → Speech. Test: Live tab → any announcement → 🔊 தமிழ். If no Tamil voice, the button shows a message; use 🔊 English.
 - [ ] Microphone allowed for localhost (for 🎤 Speak). Test once with a Tamil sentence.
