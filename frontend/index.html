@@ -105,6 +105,8 @@ header{height:56px;display:flex;align-items:center;gap:10px;white-space:nowrap;o
 #capdlg::backdrop{background:#000a}
 #capdlg pre{max-height:55vh;overflow:auto;background:#070b10;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px;white-space:pre-wrap;word-break:break-word}
 .capwarn{font-size:22px;font-weight:900;color:#fff;background:#b45309;border-radius:8px;padding:8px 12px;margin-bottom:6px;text-align:center;letter-spacing:.5px}
+#crowdcanvas{position:absolute;left:0;top:0;pointer-events:none}
+#crowdbtn.on{border-color:#14b8a6;color:#5eead4}
 .reason{font-size:12px;color:#c3ccd8;margin-bottom:6px}
 button.xs{padding:1px 7px;font-size:12px;margin-left:4px}
 .expl{margin:4px 0 2px;padding:6px 8px;border-left:3px solid var(--blue);background:#0b1119;color:#c3ccd8}
@@ -190,6 +192,7 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
   <div class="ctrls" id="simctrls">
     <button class="ghost" onclick="view('venue')" title="Zoom to venue">Venue</button>
     <button class="ghost" onclick="view('city')" title="Zoom to city">City</button>
+    <button class="ghost on" id="crowdbtn" onclick="toggleCrowd()" title="Animated crowd: 1 dot ≈ 50 people">Crowd view: ON</button>
     <button onclick="api('reset')">⟲ Reset</button>
     <button onclick="api('step',{n:1})">+1 min</button>
     <button class="pri" id="playbtn" onclick="togglePlay()">▶ Play</button>
@@ -209,7 +212,7 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
     <div class="card"><h3>Hospital load <span class="small">our plan vs nearest-only</span></h3><div id="hosps"></div></div>
   </div>
 
-  <div id="mapwrap"><div id="map"></div><div class="banner" id="banner"></div>
+  <div id="mapwrap"><div id="map"></div><canvas id="crowdcanvas"></canvas><div class="banner" id="banner"></div>
     <button class="mapbtn" onclick="mapFull()" title="Fullscreen map (Esc to exit)">⛶ Fullscreen</button>
     <div class="maplegend"><i style="background:#dc2626"></i>ALS<i style="background:#f97316"></i>BLS<i style="background:#2563eb"></i>Police<i style="background:#14b8a6"></i>Medic<i style="background:#a855f7"></i>Volunteer<i style="background:#0ea5e9"></i>Water
       &nbsp;· ring: <span style="color:#fff">free</span> / <span style="color:#facc15">en route</span> / <span style="color:#ef4444">on scene</span> / <span style="color:#22c55e">to hospital</span></div>
@@ -478,6 +481,7 @@ function render(){
   const b=S.baseline||{};
   document.getElementById('twinsum').innerHTML=`live: ${S.crush_minute!=null?'<span class="bad">crush at T+'+S.crush_minute+'</span>':'<span class="good">no crush</span>'} · twin: ${b.crush_minute!=null?'<span class="bad">crush at T+'+b.crush_minute+'</span>':'no crush yet'}`;
   drawMap();
+  crowdSync();
 }
 
 // Impact comparison, shared by the Live card and the After-action report. Lower is better on every row.
@@ -598,6 +602,80 @@ async function loadAAR(){
 }
 
 fetch('/api/health').then(r=>r.json()).then(h=>document.getElementById('llm').textContent=h.llm?'Claude triage: ON':'Rule-based triage (add ANTHROPIC_API_KEY for Claude)');
+// ---------- living crowd: one canvas in a custom Leaflet pane (above zone circles, below unit markers) ----------
+// 1 dot ≈ 50 people. Positions are metres from the zone centre, so pan/zoom never scrambles them.
+// Dots leave only through gates that actually drain people in the engine: G4 (B, C) when open, G3 (D) always.
+const CROWD={on:true, raf:null, dots:{}, target:{}, PER:50, CAP:1500,
+  EXITS:[{gate:'G4',zones:['B','C'],open:()=>S.gates.G4&&S.gates.G4.open},{gate:'G3',zones:['D'],open:()=>true}]};
+map.createPane('crowd'); map.getPane('crowd').style.zIndex=450; map.getPane('crowd').style.pointerEvents='none';
+const crowdCv=document.getElementById('crowdcanvas'); map.getPane('crowd').appendChild(crowdCv);
+const crowdCtx=crowdCv.getContext('2d');
+map.on('zoomstart',()=>crowdCv.style.visibility='hidden'); map.on('zoomend',()=>crowdCv.style.visibility='visible');
+const M_LAT=111320, mOff=(z,lat,lng)=>({x:(lng-z.lng)*M_LAT*Math.cos(z.lat*Math.PI/180), y:(lat-z.lat)*M_LAT});
+function crowdSync(){  // called after every state update: set per-zone targets, the frame loop moves toward them gradually
+  if(!S) return;
+  const raw={}; let tot=0;
+  for(const [id,z] of Object.entries(S.zones)){ raw[id]=Math.round(z.count/CROWD.PER); tot+=raw[id]; }
+  const k=tot>CROWD.CAP?CROWD.CAP/tot:1;
+  for(const id in raw){ CROWD.target[id]=Math.round(raw[id]*k); CROWD.dots[id]=CROWD.dots[id]||[]; }
+  crowdKick();
+}
+function crowdSpawn(z,a){ const r=z.radius*Math.sqrt(Math.random()), t=Math.random()*2*Math.PI;
+  return {x:r*Math.cos(t), y:r*Math.sin(t), a, k:Math.random(), out:null}; }
+function crowdStep(){
+  const B=S.zones.B, dB=B?B.density:0, pull=Math.max(0,Math.min(1,(dB-3)/3))*0.05;
+  const exitOf={}; for(const e of CROWD.EXITS) if(e.open()&&S.gates[e.gate]) for(const zid of e.zones) exitOf[zid]=S.gates[e.gate];
+  for(const [id,z] of Object.entries(S.zones)){
+    const ds=CROWD.dots[id]; if(!ds) continue;
+    const stage=B?mOff(z,B.lat,B.lng):{x:0,y:0}, ex=exitOf[id]?mOff(z,exitOf[id].lat,exitOf[id].lng):null;
+    const live=ds.filter(d=>!d.out), want=CROWD.target[id]||0;
+    // gradual add/remove: at most 2 per zone per frame
+    for(let n=0;n<2&&live.length+n<want;n++) ds.push(crowdSpawn(z,0));
+    for(let n=0;n<2&&live.length-n>want;n++){ const d=live[live.length-1-n]; d.out=ex?'exit':'fade'; }
+    // with an exit open, keep a visible stream: swap a dot for a fresh one (count unchanged)
+    if(ex&&live.length&&Math.random()<0.25){ live[Math.floor(Math.random()*live.length)].out='exit'; ds.push(crowdSpawn(z,0)); }
+    const rmin=id==='B'?z.radius*Math.max(0.3,Math.min(0.9,1.1-dB/7)):0;
+    for(const d of ds){
+      if(d.out){ if(d.out==='exit'&&ex){ const vx=ex.x-d.x, vy=ex.y-d.y, L=Math.hypot(vx,vy)||1; d.x+=vx/L*0.45; d.y+=vy/L*0.45; }
+        d.a-=0.012; continue; }
+      d.a=Math.min(1,d.a+0.03);
+      d.x+=(Math.random()-.5)*0.3; d.y+=(Math.random()-.5)*0.3;
+      const vx=stage.x-d.x, vy=stage.y-d.y, L=Math.hypot(vx,vy);
+      if(L>Math.max(3,rmin)){ d.x+=vx/L*pull*d.k*(id==='B'?1:0.6); d.y+=vy/L*pull*d.k*(id==='B'?1:0.6); }
+      const r=Math.hypot(d.x,d.y), lim=z.radius*0.95; if(r>lim){ d.x*=lim/r; d.y*=lim/r; }
+    }
+    CROWD.dots[id]=ds.filter(d=>d.a>0||!d.out);
+  }
+}
+function crowdDraw(){
+  const sz=map.getSize(), dpr=window.devicePixelRatio||1;
+  if(crowdCv.width!==Math.round(sz.x*dpr)||crowdCv.height!==Math.round(sz.y*dpr)){
+    crowdCv.width=Math.round(sz.x*dpr); crowdCv.height=Math.round(sz.y*dpr); crowdCv.style.width=sz.x+'px'; crowdCv.style.height=sz.y+'px'; }
+  L.DomUtil.setPosition(crowdCv,map.containerPointToLayerPoint([0,0]));
+  crowdCtx.setTransform(dpr,0,0,dpr,0,0); crowdCtx.clearRect(0,0,sz.x,sz.y);
+  const zoom=map.getZoom(), size=zoom>=17?3:2;
+  for(const [id,z] of Object.entries(S.zones)){
+    const ds=CROWD.dots[id]; if(!ds||!ds.length) continue;
+    const c=map.latLngToContainerPoint([z.lat,z.lng]), e=map.latLngToContainerPoint([z.lat+z.radius/M_LAT,z.lng]);
+    const s=Math.hypot(c.x-e.x,c.y-e.y)/z.radius;  // px per metre
+    crowdCtx.fillStyle=z.density>=5?'#ef4444':z.density>=4?'#f59e0b':'#5eead4';
+    for(const d of ds){ if(d.a<=0) continue; crowdCtx.globalAlpha=Math.max(0,Math.min(1,d.a))*0.9;
+      crowdCtx.fillRect(c.x+d.x*s-size/2, c.y-d.y*s-size/2, size, size); }
+  }
+  crowdCtx.globalAlpha=1;
+}
+function crowdFrame(){
+  CROWD.raf=null;
+  if(!CROWD.on||document.hidden||!S||!document.getElementById('live').classList.contains('on')) return;
+  crowdStep(); crowdDraw(); CROWD.raf=requestAnimationFrame(crowdFrame);
+}
+function crowdKick(){ if(CROWD.on&&!CROWD.raf) CROWD.raf=requestAnimationFrame(crowdFrame); }
+function toggleCrowd(){
+  CROWD.on=!CROWD.on; const b=document.getElementById('crowdbtn'); b.textContent='Crowd view: '+(CROWD.on?'ON':'OFF'); b.classList.toggle('on',CROWD.on);
+  if(CROWD.on) crowdKick(); else { if(CROWD.raf) cancelAnimationFrame(CROWD.raf); CROWD.raf=null; crowdCtx.clearRect(0,0,crowdCv.width,crowdCv.height); }
+}
+document.addEventListener('visibilitychange',crowdKick);
+
 poll(); setInterval(()=>{ if(!playing) poll(); },3000);
 window.addEventListener('resize',()=>S&&render());
 </script>
