@@ -8,12 +8,13 @@ import os
 import threading
 from typing import List, Optional
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from agents.explain import explain
+from cap import build_cap
 from engine import Engine
 from permit import assess
 
@@ -112,6 +113,15 @@ def explain_diff(v: int, i: int):
                                  "source": "stale"})
         item, reasons = dict(d["items"][i]), list(engine.st["reasons"])
     return JSONResponse(explain(item, reasons))
+
+
+@app.get("/api/cap/{ann_id}")
+def cap(ann_id: str):
+    with lock:
+        xml = build_cap(engine.st, ann_id)
+    if xml is None:
+        raise HTTPException(404, "Unknown announcement")
+    return Response(xml, media_type="application/xml")
 
 
 @app.get("/api/aar")
