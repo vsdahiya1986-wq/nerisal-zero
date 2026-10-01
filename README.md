@@ -3,7 +3,7 @@
 **நெரிசல் = crowd crush. NERISAL ZERO sees a crowd crush coming, lets the commander test each decision before taking it,
 and re-plans the whole emergency response live — with a human approving every risky step.**
 
-Demo video: (link)
+**Live demo: https://nerisal-zero.vercel.app** · attendee page: https://nerisal-zero.vercel.app/pulse · Demo video: (link)
 
 ## Why it matters
 - **120+ people died in stampedes in India in 2025.** At Karur, Tamil Nadu, 41 died.
@@ -34,6 +34,8 @@ Other pages: **/marshal?zone=B** (ground marshals) and **/pulse** (attendees). F
 offline Tamil/Tanglish/Hindi/English rule parser runs. Map tiles, voice input and Claude need internet; everything else works offline.
 
 ## Deploy online (free)
+Live on Vercel: **https://nerisal-zero.vercel.app** (redeploy: `npx vercel deploy --prod`; config in `vercel.json`, `pyproject.toml`, `main.py`). Alternative:
+
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/vsdahiya1986-wq/nerisal-zero)
 
 One click, sign in with GitHub, and Render builds it from `render.yaml` (about 5 minutes). Notes: the free tier sleeps after

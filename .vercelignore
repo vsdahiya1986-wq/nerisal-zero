@@ -6,3 +6,5 @@ tests
 NIGHT_*.md
 night_runner.ps1
 MORNING_REPORT.md
+.env*
+.vercel

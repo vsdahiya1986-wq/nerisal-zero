@@ -1,0 +1,16 @@
+[project]
+name = "nerisal-zero"
+version = "1.0.0"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.27",
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "networkx>=3.2",
+  "anthropic>=0.40",
+  "qrcode>=7.4",
+]
+
+[tool.vercel]
+entrypoint = "main:app"

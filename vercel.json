@@ -1,6 +1,6 @@
 {
-  "functions": {
-    "api/index.py": { "includeFiles": "{backend,frontend,docs}/**", "maxDuration": 60 }
+  "services": {
+    "app": { "root": "./", "entrypoint": "main:app" }
   },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+  "rewrites": [{ "source": "/(.*)", "destination": { "service": "app" } }]
 }
