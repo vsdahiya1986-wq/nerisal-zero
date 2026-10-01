@@ -33,6 +33,13 @@ Other pages: **/marshal?zone=B** (ground marshals) and **/pulse** (attendees). F
 `--host 0.0.0.0` and scan the QR code in the Citizen Pulse card. Optional Claude triage: set `ANTHROPIC_API_KEY`. Without it the
 offline Tamil/Tanglish/Hindi/English rule parser runs. Map tiles, voice input and Claude need internet; everything else works offline.
 
+## Deploy online (free)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/vsdahiya1986-wq/nerisal-zero)
+
+One click, sign in with GitHub, and Render builds it from `render.yaml` (about 5 minutes). Notes: the free tier sleeps after
+15 minutes idle, so open the link a minute before judging; everyone who opens the link shares the same simulation (press Reset
+before your demo); the Citizen Pulse QR then points to the public URL, so any phone can join.
+
 ## Features (one line each)
 - **Crowd forecast**: density per zone and a 10-minute forecast, with heat, delay and power loss as aggravating factors.
 - **Decision Preview 🔮**: every approval card simulates approve vs reject 10 minutes ahead before the human clicks.

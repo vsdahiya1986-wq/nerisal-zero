@@ -48,3 +48,8 @@ def test_no_api_key_means_rules_and_template():
     c.post("/api/reset")
     st = c.post("/api/report", json={"text": "fire near gate 3"}).json()
     assert any("parser: rules" in l["msg"] for l in st["log"])
+
+
+def test_qr_uses_public_url_when_hosted(monkeypatch):
+    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://nerisal-zero.onrender.com/")
+    assert TestClient(app.app).get("/api/pulse/qr").json()["url"] == "https://nerisal-zero.onrender.com/pulse"
