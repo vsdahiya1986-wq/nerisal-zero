@@ -1,0 +1,8 @@
+.venv
+tests
+**/__pycache__
+.pytest_cache
+*.log
+NIGHT_*.md
+night_runner.ps1
+MORNING_REPORT.md

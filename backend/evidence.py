@@ -2,7 +2,7 @@
 Evidence Lab: does acting on NERISAL's warnings help beyond the one scripted demo?
 Runs N randomised rallies (same seeds for every policy) and compares three human policies.
 
-    python backend/evidence.py --n 200 --out docs/evidence.json
+    python backend/evidence.py --n 200 --out docs/evidence.json   (chart needs: pip install matplotlib)
 
 Synthetic model-based simulation, not real-world validation.
 """

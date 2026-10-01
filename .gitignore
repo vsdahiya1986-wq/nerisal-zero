@@ -6,3 +6,4 @@ __pycache__/
 *.log
 night_runner.log
 docs/media/*.webm
+.vercel

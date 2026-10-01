@@ -227,7 +227,8 @@ def lan_ip():
 
 @app.get("/api/pulse/qr")
 def pulse_qr(request: Request):
-    public = os.environ.get("PUBLIC_URL") or os.environ.get("RENDER_EXTERNAL_URL")  # set when hosted in the cloud
+    vercel = os.environ.get("VERCEL_PROJECT_PRODUCTION_URL")
+    public = os.environ.get("PUBLIC_URL") or os.environ.get("RENDER_EXTERNAL_URL") or (f"https://{vercel}" if vercel else None)
     url = f"{public.rstrip('/')}/pulse" if public else f"http://{lan_ip()}:{request.url.port or 8000}/pulse"
     try:
         import qrcode
