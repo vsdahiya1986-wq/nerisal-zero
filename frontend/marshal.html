@@ -57,6 +57,11 @@ function render(){
   if(S.venue.event_halted) todo.push(['நிகழ்ச்சி நிறுத்தப்பட்டது. பகுதி பகுதியாக வெளியேற்றுங்கள்.','Event halted. Disperse the crowd zone by zone.']);
   const lane=S.incidents.find(i=>i.status==='open'&&i.location===zone&&['crush','cardiac','unit_blocked'].includes(i.type));
   if(lane) todo.push(['ஆம்புலன்ஸ் வழியை திறந்து வைக்கவும்.','Keep the ambulance lane clear.']);
+  for(const x of (S.extractions||[]).filter(x=>x.zone===zone)){
+    const n=x.gate_id.slice(1);
+    todo.push([`காயமடைந்தவரிடமிருந்து வாயில் ${n} வரை மனிதச் சங்கிலி அமையுங்கள்; வழியைத் திறந்து வைக்கவும்.`,
+               `Form a human chain from the casualty to Gate ${n}; keep the path open.`]);
+  }
   if(!todo.length) todo.push(['நிலைமை சாதாரணம். கவனித்துக் கொண்டே இருங்கள்.','Situation normal. Keep watching.']);
   document.getElementById('todo').innerHTML=todo.map(t=>`<div class="task"><div class="ta">${t[0]}</div><div class="en">${t[1]}</div></div>`).join('');
   const a=S.announcements.find(x=>x.zone===zone);

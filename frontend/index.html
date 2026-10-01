@@ -252,6 +252,7 @@ table.tbl th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppe
   <div class="col right">
     <div class="card"><h3>Impact <span class="small">your decisions vs no action</span></h3><div id="impact"></div></div>
     <div class="card"><h3>Needs human decision <span id="pcount" class="chip danger">0</span></h3><div id="approvals"></div></div>
+    <div class="card"><h3>Extraction <span class="small">casualty → human chain → gate → ambulance</span></h3><div id="extract"></div></div>
     <div class="card"><h3>Open incidents <span class="small">harm if help is delayed 0→30 min</span></h3><div id="incs"></div></div>
     <div class="card"><h3>Plan diff <span class="small" id="diffv"></span></h3><div class="diff" id="diff"></div></div>
     <div class="card"><h3>Why</h3><div id="reasons"></div></div>
@@ -470,6 +471,9 @@ function render(){
     `<b style="color:#e8eef6">Golden hour:</b> red patients in hospital <b style="color:#fff">${gr.in_hospital}/${gr.total}</b> · median time to hospital <b style="color:#fff">${gr.median_min_to_hospital??'–'}</b> min`:'Golden hour: no red patients.';
 
   document.getElementById('impact').innerHTML=impactTable(S.impact);
+  document.getElementById('extract').innerHTML=(S.extractions||[]).map(x=>`<div class="incrow" style="grid-template-columns:1fr auto"><span><b>${esc(x.incident)}</b> ${esc(x.title)} · Zone ${esc(x.zone)}<br>
+    <span class="small">responder ${esc(x.responder||'none free')}${x.responder_eta!=null?' ('+x.responder_eta+' min)':''} · ${esc(x.gate)} · carry ${x.carry_min} min · ambulance ${esc(x.ambulance||'none')}</span></span>
+    <b title="responder + carry + wait for ambulance">${x.total_min!=null?x.total_min+' min':'?'}</b></div>`).join('')||'<div class="small">No casualty inside the crowd.</div>';
   const pu=S.pulse||{}; document.getElementById('pulse').innerHTML=`<table class="imp"><tr><th>Zone</th><th>OK</th><th>Can't move</th><th>Medical</th><th>Lost child</th><th>Index</th></tr>${
     Object.entries(pu).map(([z,c])=>`<tr><td>${z}</td><td>${c.ok}</td><td>${c.cant_move}</td><td>${c.medical}</td><td>${c.lost_child}</td><td class="${c.index>=0.3&&c.total>=3?'worse':''}">${c.total?Math.round(c.index*100)+' %':'–'}</td></tr>`).join('')}</table>
     <div class="small">Index = share of taps saying "can't move". 5+ such taps (or 30 %+) in 3 min become a crowding report for the Triage Agent.</div>`;
@@ -690,6 +694,11 @@ function drawMap(){
     const html=`<div class="u-ic ${stall?'u-stall':''}" style="background:${TYPE_COL[u.type]};border-color:${RING[u.status]};${u.reserve?'outline:2px dashed #fff':''}">${u.id}</div>`;
     L.marker([u.lat,u.lng],{icon:L.divIcon({className:'',html,iconSize:[30,30]}),zIndexOffset:500})
       .bindTooltip(`${u.id} ${u.label}<br>${u.status}${u.incident?' → '+u.incident:''}${u.eta_left?' · '+u.eta_left+' min':''}${stall?'<br>⚠ not moving':''}`).addTo(layers.units);
+  }
+  for(const x of (S.extractions||[])){  // human chain: casualty -> open gate
+    const g=S.gates[x.gate_id], p=incPos[x.incident]; if(!g||!p) continue;
+    L.polyline([p,[g.lat,g.lng]],{color:'#22c55e',weight:4,dashArray:'3 7',opacity:.95})
+      .bindTooltip(`<b>Extraction ${esc(x.incident)} → ${esc(x.gate)}</b><br>${x.steps.map(esc).join('<br>')}<br><b>Total ${x.total_min??'?'} min</b>`).addTo(layers.lines);
   }
 }
 

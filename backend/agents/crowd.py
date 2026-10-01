@@ -84,6 +84,19 @@ class CrowdPressureAgent:
             return "Gate 4"
         return "Gate 3"
 
+    MAKE_WAY = {
+        "ta": "மருத்துவக் குழு வருகிறது. மேடை அருகில் உள்ளவர்கள் இடமும் வலமும் நகர்ந்து வழி விடுங்கள். ஓட வேண்டாம்.",
+        "en": "Medical team coming through. People near the stage, please step left and right and make a path. Do not run.",
+        "hi": "मेडिकल टीम आ रही है। कृपया बाएँ-दाएँ हटकर रास्ता दें। दौड़ें नहीं।",
+    }
+
+    def make_way(self, st, zid, gate, iid, log):
+        """Casualty extraction started: ask the crowd to open a path (once per incident; caller guards)."""
+        a = {"id": f"AN{len(st['announcements']) + 1}", "minute": st["minute"], "zone": zid, "gate": gate,
+             "kind": "make_way", "incident": iid, **self.MAKE_WAY}
+        st["announcements"].insert(0, a)
+        log(self.name, f"Drafted 'Make way' announcement for Zone {zid}: medical team carrying casualties of {iid} to {gate}.")
+
     def _announce(self, st, zid, log):
         gate = self._exit_gate_for(st, zid)
         z_en = f"Zone {zid}"

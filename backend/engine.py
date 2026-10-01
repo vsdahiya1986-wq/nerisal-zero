@@ -10,7 +10,7 @@ import pulse
 import scenario as S
 from agents.command import CommandAgent
 from agents.crowd import CrowdPressureAgent
-from agents.geo import lerp
+from agents.geo import haversine_km, lerp
 from agents.hospital import HospitalSurgeAgent
 from agents.resource import ResourceAgent, weight
 from agents.route import RouteAgent
@@ -104,6 +104,63 @@ class Engine:
         self.crowd.run(st, self.log, self.propose)
         self.route.run(st, self.log)
         self.command.run(st, self.route, self.resource, self.hospital, self.log, self.propose)
+        for x in self.extractions():  # an extraction just started -> "Make way" announcement, once per incident
+            done = st.setdefault("make_way_done", [])
+            if x["incident"] not in done:
+                done.append(x["incident"])
+                self.crowd.make_way(st, x["zone"], x["gate"], x["incident"], self.log)
+
+    CARRY_KMH = 1.5  # walking speed of a team carrying a patient
+
+    def extractions(self):
+        """Casualty Extraction Path: casualty inside a crowd zone -> responder on foot -> carried to an open gate -> ambulance."""
+        st, out = self.st, []
+        for inc in st["incidents"].values():
+            zid = inc["location"]
+            cas = inc["casualties"]
+            if inc["status"] != "open" or zid not in st["zones"] or cas.get("red", 0) + cas.get("yellow", 0) <= 0:
+                continue
+            z = st["zones"][zid]
+            # 1. nearest volunteer / medic already inside the zone (else nearest on foot anywhere)
+            best = None
+            for u in st["units"].values():
+                if u["type"] not in ("VOL", "MED") or u["status"] in ("unavailable", "transporting"):
+                    continue
+                eta = 0.0 if (u["status"] == "on_scene" and u.get("incident") == inc["id"]) else self.route.eta(st, u, inc)
+                if eta is None:
+                    continue
+                inside = haversine_km((u["lat"], u["lng"]), (z["lat"], z["lng"])) * 1000 <= z["radius"] * 1.5
+                key = (not inside, eta)
+                if best is None or key < best[0]:
+                    best = (key, u, eta, inside)
+            # 2. open gate: Gate 4 if open, else Gate 3; carry time slowed by density like foot units
+            gid = "G4" if st["gates"]["G4"]["open"] else "G3"
+            km = haversine_km((z["lat"], z["lng"]), S.NODES[gid])
+            carry = round(km / self.CARRY_KMH * 60 * (1 + max(0, z["density"] - 3) * 0.4), 1)
+            # 3. ambulance ETA to that gate (existing road routing)
+            amb = None
+            for u in st["units"].values():
+                if u["type"] not in ("ALS", "BLS") or u["status"] in ("unavailable", "transporting") or u.get("stalled"):
+                    continue
+                t = self.route.sp(u["node"], gid) if u["node"] in self.route.nodes else None
+                if t is not None and (amb is None or t < amb[1]):
+                    amb = (u["id"], round(t + 0.5, 1))
+            resp = round(best[2], 1) if best else None
+            wait = round(max(0.0, amb[1] - ((resp or 0) + carry)), 1) if amb else None
+            total = round((resp or 0) + carry + wait, 1) if (best and amb) else None
+            gate = st["gates"][gid]["name"] if "name" in st["gates"][gid] else gid
+            steps = [f"{best[1]['id']} ({best[1]['label']}) reaches the casualty in {resp:.0f} min"
+                     + ("" if best[3] else " (coming from outside the zone)") if best else "No volunteer or medic free: send the nearest team",
+                     f"Human chain carries the patient from Zone {zid} to {gate}: {carry:.0f} min at "
+                     f"{self.CARRY_KMH} km/h in {z['density']} p/m²",
+                     (f"Ambulance {amb[0]} drives to {gate} in parallel: {amb[1]:.0f} min, waits there {wait:.0f} min"
+                      if amb else "No ambulance can reach the gate yet: request one"),
+                     f"Patient handed to the ambulance after about {total:.0f} min" if total is not None else "Total time unknown"]
+            out.append({"incident": inc["id"], "title": inc["title"], "zone": zid, "gate_id": gid, "gate": gate,
+                        "responder": best[1]["id"] if best else None, "responder_eta": resp,
+                        "carry_min": carry, "ambulance": amb[0] if amb else None, "ambulance_eta": amb[1] if amb else None,
+                        "pickup_wait": wait, "total_min": total, "steps": steps})
+        return out
 
     # ------------------------------------------------------------------ events
     def _apply_events(self, minute):
@@ -577,5 +634,6 @@ class Engine:
                           "averted": self.baseline.st["averted"]} if self.baseline else None),
             "total_people": sum(z["count"] for z in st["zones"].values()), "impact": self.impact(),
             "end_minute": S.END_MINUTE, "pulse": pulse.summary(st), "golden": self.golden(st),
+            "extractions": self.extractions(),
             "next_events": [e for i, e in enumerate(self.events) if i not in st["events_seen"]][:4],
         }
